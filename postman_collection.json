@@ -1,0 +1,77 @@
+{
+  "info": {
+    "name": "Gestion Evenements - Service Utilisateurs (via API Gateway)",
+    "description": "All requests go through the API Gateway on port 8080 (the single entry point). Start eureka-server, then service-utilisateurs, then api-gateway. Demo users are seeded automatically (password: 'password').",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Register (inscription)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/api/users/register", "host": ["{{baseUrl}}"], "path": ["api","users","register"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"Khelifi\",\n  \"prenom\": \"Abderrahim\",\n  \"email\": \"abderrahim@esprit.tn\",\n  \"motDePasse\": \"password\",\n  \"role\": \"ORGANISATEUR\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Login (connexion)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/api/users/login", "host": ["{{baseUrl}}"], "path": ["api","users","login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"fedi@esprit.tn\",\n  \"motDePasse\": \"password\"\n}"
+        }
+      }
+    },
+    {
+      "name": "List all users",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api","users"] }
+      }
+    },
+    {
+      "name": "Get user by id",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/api/users/1", "host": ["{{baseUrl}}"], "path": ["api","users","1"] }
+      }
+    },
+    {
+      "name": "Update user",
+      "request": {
+        "method": "PUT",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/api/users/1", "host": ["{{baseUrl}}"], "path": ["api","users","1"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"prenom\": \"Fedi (modifie)\",\n  \"role\": \"ADMIN\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Delete user",
+      "request": {
+        "method": "DELETE",
+        "url": { "raw": "{{baseUrl}}/api/users/3", "host": ["{{baseUrl}}"], "path": ["api","users","3"] }
+      }
+    },
+    {
+      "name": "OpenFeign demo - user with their events",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/api/users/1/evenements", "host": ["{{baseUrl}}"], "path": ["api","users","1","evenements"] },
+        "description": "Calls service-evenements via OpenFeign. Returns the user + an empty events list with a fallback note until Nour's service-evenements is running; returns real events once it is up."
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+# ===== Build output (Maven) =====
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.jar.original
+
+# ===== IDE =====
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+nbproject/
+build/
+.gradle/
+
+# ===== Logs / OS =====
+*.log
+logs/
+.DS_Store
+Thumbs.db
+
+# ===== Personal / private (NOT pushed) =====
+# Fedi's personal architecture + run notes
+GUIDE.md
+# PowerPoint temp lock files
+~$*.pptx
+
+# ===== Scaffolding leftovers (safe to ignore) =====
+*.zip
+meta.json
+_pptx_extract/

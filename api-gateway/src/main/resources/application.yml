@@ -1,0 +1,39 @@
+server:
+  port: 8080                       # THE single port clients use. Everything goes through here.
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:                   # Spring Cloud Gateway 4.3 namespace (the old
+                                   # "spring.cloud.gateway.routes" is deprecated since 4.3.0)
+          routes:
+            # /api/users/**  ->  the Service Utilisateurs microservice.
+            # "lb://" means "load-balance by service NAME looked up in Eureka" (no hard-coded IP/port).
+            - id: service-utilisateurs
+              uri: lb://service-utilisateurs
+              predicates:
+                - Path=/api/users/**
+
+            # /api/events/** -> Nour's Service Événements. The route is declared now so the gateway
+            # is ready; it returns 503 until that service is started and registered in Eureka.
+            - id: service-evenements
+              uri: lb://service-evenements
+              predicates:
+                - Path=/api/events/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/   # where to find the Eureka registry
+  instance:
+    prefer-ip-address: true        # register by IP — more reliable on a single demo machine
+
+# Optional: expose the gateway's own actuator routes endpoint for debugging.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

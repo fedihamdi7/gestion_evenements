@@ -1,0 +1,35 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: service-utilisateurs        # the name Eureka and the gateway (lb://service-utilisateurs) use
+
+  datasource:
+    # createDatabaseIfNotExist=true -> the "db_utilisateurs" database is created automatically on
+    # first run if it does not exist, so you don't have to create it by hand.
+    url: jdbc:mysql://localhost:3306/db_utilisateurs?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${SPRING_DATASOURCE_USERNAME:root}    # override via env var if your MySQL user differs
+    password: ${SPRING_DATASOURCE_PASSWORD:root}    # override via env var to match your MySQL password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update                # Hibernate creates/updates the "utilisateurs" table for you
+    show-sql: true                    # log the SQL it runs (nice for learning)
+    properties:
+      hibernate:
+        format_sql: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/   # where the Eureka registry lives
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
