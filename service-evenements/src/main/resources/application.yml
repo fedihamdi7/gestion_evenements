@@ -1,0 +1,23 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: service-evenements        # the name Eureka and the gateway (lb://service-evenements) use
+
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/db_evenements
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/   # where the Eureka registry lives
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
