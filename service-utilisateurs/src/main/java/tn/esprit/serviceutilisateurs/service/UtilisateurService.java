@@ -98,7 +98,7 @@ public class UtilisateurService {
     public UtilisateurAvecEvenements getUtilisateurAvecEvenements(Long id) {
         UtilisateurResponse utilisateur = toResponse(getOrThrow(id));
         try {
-            List<EvenementDto> evenements = evenementClient.getEvenementsParOrganisateur(id);
+            List<EvenementDto> evenements = evenementClient.getReservationsByUser(id);
             return UtilisateurAvecEvenements.builder()
                     .utilisateur(utilisateur)
                     .evenements(evenements)
