@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import tn.esprit.serviceavis.dto.AvisAvecDetailsResponse;
 import tn.esprit.serviceavis.dto.AvisRequest;
 import tn.esprit.serviceavis.dto.AvisResponse;
 import tn.esprit.serviceavis.dto.AvisUpdateRequest;
@@ -53,6 +54,12 @@ public class AvisController {
     @GetMapping("/utilisateur/{utilisateurId}")
     public List<AvisResponse> findByUtilisateur(@PathVariable Long utilisateurId) {
         return service.findByUtilisateur(utilisateurId);
+    }
+
+    /** OpenFeign demo : avis d'un événement enrichis avec les détails de service-evenements */
+    @GetMapping("/evenement/{evenementId}/avec-details")
+    public AvisAvecDetailsResponse getAvecDetails(@PathVariable String evenementId) {
+        return service.getAvisAvecDetails(evenementId);
     }
 
     @PutMapping("/{id}")
