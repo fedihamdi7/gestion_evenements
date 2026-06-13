@@ -9,12 +9,12 @@ import org.springframework.web.server.ResponseStatusException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import tn.esprit.serviceutilisateurs.client.EvenementClient;
-import tn.esprit.serviceutilisateurs.client.EvenementDto;
+import tn.esprit.serviceutilisateurs.client.ReservationClient;
+import tn.esprit.serviceutilisateurs.client.ReservationDto;
 import tn.esprit.serviceutilisateurs.dto.LoginRequest;
 import tn.esprit.serviceutilisateurs.dto.RegisterRequest;
 import tn.esprit.serviceutilisateurs.dto.UpdateRequest;
-import tn.esprit.serviceutilisateurs.dto.UtilisateurAvecEvenements;
+import tn.esprit.serviceutilisateurs.dto.UtilisateurAvecReservations;
 import tn.esprit.serviceutilisateurs.dto.UtilisateurResponse;
 import tn.esprit.serviceutilisateurs.model.Role;
 import tn.esprit.serviceutilisateurs.model.Utilisateur;
@@ -31,7 +31,7 @@ public class UtilisateurService {
 
     private final UtilisateurRepository repository;
     private final PasswordEncoder passwordEncoder;
-    private final EvenementClient evenementClient;   // the OpenFeign client
+    private final ReservationClient reservationClient;   // the OpenFeign client
 
     // ---------- Authentication ----------
 
@@ -90,26 +90,26 @@ public class UtilisateurService {
     // ---------- OpenFeign demo (requirement #3) ----------
 
     /**
-     * Returns the user enriched with the events they organise, fetched from service-evenements
-     * via OpenFeign. If that service is not up yet, we degrade gracefully (empty list + note)
-     * instead of failing — so this service runs standalone and the link "lights up" automatically
-     * once Nour's service is started and registered in Eureka.
+     * Returns the user (from MySQL) enriched with their reservations, fetched from
+     * service-reservation (H2) via OpenFeign. If that service is down, we degrade gracefully
+     * (empty list + note) instead of failing — so this service runs standalone and the link
+     * "lights up" automatically once service-reservation is started and registered in Eureka.
      */
-    public UtilisateurAvecEvenements getUtilisateurAvecEvenements(Long id) {
+    public UtilisateurAvecReservations getUtilisateurAvecReservations(Long id) {
         UtilisateurResponse utilisateur = toResponse(getOrThrow(id));
         try {
-            List<EvenementDto> evenements = evenementClient.getReservationsByUser(id);
-            return UtilisateurAvecEvenements.builder()
+            List<ReservationDto> reservations = reservationClient.getReservationsByUser(id);
+            return UtilisateurAvecReservations.builder()
                     .utilisateur(utilisateur)
-                    .evenements(evenements)
-                    .noteIntegration("Donnees recuperees via OpenFeign depuis 'service-evenements'.")
+                    .reservations(reservations)
+                    .noteIntegration("Donnees recuperees via OpenFeign depuis 'service-reservation'.")
                     .build();
         } catch (Exception e) {
-            log.warn("Appel Feign vers service-evenements echoue (fallback): {}", e.getMessage());
-            return UtilisateurAvecEvenements.builder()
+            log.warn("Appel Feign vers service-reservation echoue (fallback): {}", e.getMessage());
+            return UtilisateurAvecReservations.builder()
                     .utilisateur(utilisateur)
-                    .evenements(List.of())
-                    .noteIntegration("'service-evenements' indisponible -> fallback. L'appel OpenFeign "
+                    .reservations(List.of())
+                    .noteIntegration("'service-reservation' indisponible -> fallback. L'appel OpenFeign "
                             + "fonctionnera des que ce microservice sera demarre et enregistre dans Eureka.")
                     .build();
         }

@@ -6,14 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Mirror of ReservationEvenement's Reservation model.
- * Fields must match what service-reservation returns in JSON.
+ * Mirror of the Reservation model in service-reservation (the ReservationEvenement project).
+ * Fields must match the JSON returned by that service so OpenFeign can map it automatically.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class EvenementDto {
+public class ReservationDto {
     private Long id;
     private Long userId;
     private String eventTitle;

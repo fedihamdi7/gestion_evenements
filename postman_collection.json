@@ -66,11 +66,11 @@
       }
     },
     {
-      "name": "OpenFeign demo - user with their events",
+      "name": "OpenFeign demo - user with their reservations",
       "request": {
         "method": "GET",
-        "url": { "raw": "{{baseUrl}}/api/users/1/evenements", "host": ["{{baseUrl}}"], "path": ["api","users","1","evenements"] },
-        "description": "Calls service-evenements via OpenFeign. Returns the user + an empty events list with a fallback note until Nour's service-evenements is running; returns real events once it is up."
+        "url": { "raw": "{{baseUrl}}/api/users/1/reservations", "host": ["{{baseUrl}}"], "path": ["api","users","1","reservations"] },
+        "description": "Calls service-reservation via OpenFeign. Returns the user (from MySQL) + their reservations (from H2). Falls back to an empty list + note if service-reservation is down."
       }
     }
   ]
