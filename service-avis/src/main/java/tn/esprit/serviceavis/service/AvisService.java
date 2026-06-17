@@ -1,5 +1,6 @@
 package tn.esprit.serviceavis.service;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -66,13 +67,16 @@ public class AvisService {
         repository.deleteById(id);
     }
 
-    // ---------- OpenFeign — communication inter-services ----------
+    // ---------- OpenFeign + Resilience4j Circuit Breaker — communication inter-services ----------
 
     /**
-     * Retourne les avis d'un événement enrichis avec les détails de l'événement
-     * récupérés via OpenFeign depuis service-evenements.
-     * Fallback gracieux si service-evenements est indisponible.
+     * Retourne les avis d'un evenement enrichis avec les details de l'evenement
+     * recuperes via OpenFeign depuis service-evenements.
+     * Protege par un circuit breaker Resilience4j : si service-evenements est lent
+     * ou en panne, le circuit s'ouvre et bascule immediatement vers le fallback
+     * sans attendre un nouveau timeout, evitant un effet de cascade.
      */
+    @CircuitBreaker(name = "evenementService", fallbackMethod = "fallbackAvisAvecDetails")
     public AvisAvecDetailsResponse getAvisAvecDetails(String evenementId) {
         List<AvisResponse> avisList = repository
                 .findByEvenementId(evenementId)
@@ -83,23 +87,40 @@ public class AvisService {
                 .average()
                 .orElse(0.0);
 
-        try {
-            EvenementDto evenement = evenementClient.getEvenement(evenementId);
-            return AvisAvecDetailsResponse.builder()
-                    .evenement(evenement)
-                    .avis(avisList)
-                    .noteMoyenne(Math.round(moyenne * 10.0) / 10.0)
-                    .note("Données récupérées via OpenFeign depuis 'service-evenements'.")
-                    .build();
-        } catch (Exception e) {
-            log.warn("Appel Feign vers service-evenements échoué (fallback): {}", e.getMessage());
-            return AvisAvecDetailsResponse.builder()
-                    .evenement(null)
-                    .avis(avisList)
-                    .noteMoyenne(Math.round(moyenne * 10.0) / 10.0)
-                    .note("service-evenements indisponible — fallback actif.")
-                    .build();
-        }
+        EvenementDto evenement = evenementClient.getEvenement(evenementId);
+        return AvisAvecDetailsResponse.builder()
+                .evenement(evenement)
+                .avis(avisList)
+                .noteMoyenne(Math.round(moyenne * 10.0) / 10.0)
+                .note("Donnees recuperees via OpenFeign depuis 'service-evenements'.")
+                .build();
+    }
+
+    /**
+     * Methode de fallback invoquee automatiquement par Resilience4j quand le
+     * circuit breaker est ouvert (service-evenements indisponible/instable) ou
+     * que l'appel Feign echoue. Garantit une reponse degradee mais coherente
+     * au lieu d'une erreur 500 brute pour le client.
+     */
+    private AvisAvecDetailsResponse fallbackAvisAvecDetails(String evenementId, Throwable t) {
+        log.warn("Circuit breaker actif / appel Feign vers service-evenements echoue pour evenementId={} : {}",
+                evenementId, t.getMessage());
+
+        List<AvisResponse> avisList = repository
+                .findByEvenementId(evenementId)
+                .stream().map(this::toResponse).toList();
+
+        double moyenne = avisList.stream()
+                .mapToInt(AvisResponse::getNote)
+                .average()
+                .orElse(0.0);
+
+        return AvisAvecDetailsResponse.builder()
+                .evenement(null)
+                .avis(avisList)
+                .noteMoyenne(Math.round(moyenne * 10.0) / 10.0)
+                .note("service-evenements indisponible - reponse degradee (circuit breaker actif).")
+                .build();
     }
 
     // ---------- helpers ----------
