@@ -47,7 +47,7 @@ public class AvisController {
     }
 
     @GetMapping("/evenement/{evenementId}")
-    public List<AvisResponse> findByEvenement(@PathVariable Long evenementId) {
+    public List<AvisResponse> findByEvenement(@PathVariable String evenementId) {
         return service.findByEvenement(evenementId);
     }
 

@@ -1,10 +1,12 @@
 package tn.esprit.serviceevenements.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.serviceevenements.model.Event;
 import tn.esprit.serviceevenements.repository.EventRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -15,9 +17,18 @@ public class EventController {
     private final EventRepository repository;
 
     @GetMapping
-    public List<Event> getAll(@RequestParam(required = false) String category) {
+    public List<Event> getAll(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         if (category != null) {
             return repository.findByCategory(category);
+        }
+        if (location != null) {
+            return repository.findByLocation(location);
+        }
+        if (date != null) {
+            return repository.findByDate(date);
         }
         return repository.findAll();
     }
