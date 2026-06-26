@@ -1,0 +1,31 @@
+.auth-wrap {
+  max-width: 420px;
+  margin: 40px auto 0;
+}
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.tabs button {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.tabs button.active {
+  background: var(--pri);
+  color: #fff;
+  border-color: var(--pri);
+}
+.hint {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 16px;
+}
+code {
+  background: #0b1222;
+  padding: 1px 6px;
+  border-radius: 6px;
+}

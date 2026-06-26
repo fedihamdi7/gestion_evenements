@@ -1,0 +1,22 @@
+<header class="topbar">
+  <a class="brand" routerLink="/">🎟️ Gestion d'Événements</a>
+
+  @if (auth.isLoggedIn()) {
+    <nav class="nav">
+      <a routerLink="/users">Utilisateurs</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="who">
+      <span class="badge">{{ auth.currentUser()?.roles?.join(', ') || '—' }}</span>
+      <span class="username">👤 {{ auth.currentUser()?.username }}</span>
+      <button class="ghost" (click)="logout()">Déconnexion</button>
+    </div>
+  } @else {
+    <div class="spacer"></div>
+    <span class="muted">Démo Keycloak via API Gateway</span>
+  }
+</header>
+
+<main class="content">
+  <router-outlet />
+</main>

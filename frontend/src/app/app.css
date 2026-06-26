@@ -1,0 +1,62 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  height: 58px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--txt);
+  text-decoration: none;
+}
+.nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+.nav a:hover {
+  background: var(--bg);
+  color: var(--txt);
+}
+.spacer {
+  flex: 1;
+}
+.who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.badge {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.username {
+  font-size: 14px;
+}
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+.content {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--txt);
+}

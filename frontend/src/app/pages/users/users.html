@@ -1,0 +1,50 @@
+<div class="card">
+  <div class="head">
+    <h2>Utilisateurs <span class="count">{{ users().length }}</span></h2>
+    <button class="ghost sm" (click)="load()" [disabled]="loading()">↻ Rafraîchir</button>
+  </div>
+
+  @if (message(); as m) {
+    <div class="msg" [class.ok]="m.ok" [class.err]="!m.ok">{{ m.text }}</div>
+  }
+
+  @if (loading()) {
+    <p class="muted">Chargement…</p>
+  } @else if (users().length === 0) {
+    <p class="muted">Aucun utilisateur.</p>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nom</th>
+          <th>Prénom</th>
+          <th>Email</th>
+          <th>Rôle</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (u of users(); track u.id) {
+          <tr>
+            <td>{{ u.id }}</td>
+            <td>{{ u.nom }}</td>
+            <td>{{ u.prenom }}</td>
+            <td>{{ u.email }}</td>
+            <td>
+              <select [(ngModel)]="u.role">
+                @for (r of roles; track r) {
+                  <option [value]="r">{{ r }}</option>
+                }
+              </select>
+            </td>
+            <td class="actions">
+              <button class="sm" (click)="saveRole(u, u.role)">Enregistrer</button>
+              <button class="sm danger" (click)="remove(u)">Suppr.</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
