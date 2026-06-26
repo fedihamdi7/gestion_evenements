@@ -7,14 +7,21 @@ spring:
 
   data:
     mongodb:
-      uri: mongodb://localhost:27017/db_evenements
+      database: db_evenements
+
+de:
+  flapdoodle:
+    mongodb:
+      embedded:
+        version: 7.0.0
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/   # where the Eureka registry lives
+      defaultZone: http://localhost:8761/eureka/
   instance:
-    prefer-ip-address: true
+    hostname: localhost
+    prefer-ip-address: false
 
 management:
   endpoints:
