@@ -13,7 +13,7 @@ import tn.esprit.serviceutilisateurs.repository.UtilisateurRepository;
 /**
  * On startup, if the table is empty, insert three demo users (one per role) with BCrypt-hashed
  * passwords. This gives Postman something to query immediately, and guarantees user id=1 exists
- * for the OpenFeign demo (GET /api/users/1/evenements). Password for all three: "password".
+ * for the OpenFeign demo (GET /api/users/1/reservations). Password for all three: "password".
  */
 @Component
 @RequiredArgsConstructor

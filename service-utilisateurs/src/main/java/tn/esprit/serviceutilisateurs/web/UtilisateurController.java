@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import tn.esprit.serviceutilisateurs.dto.UpdateRequest;
-import tn.esprit.serviceutilisateurs.dto.UtilisateurAvecEvenements;
+import tn.esprit.serviceutilisateurs.dto.UtilisateurAvecReservations;
 import tn.esprit.serviceutilisateurs.dto.UtilisateurResponse;
 import tn.esprit.serviceutilisateurs.service.UtilisateurService;
 
@@ -23,7 +23,7 @@ import tn.esprit.serviceutilisateurs.service.UtilisateurService;
  *   GET    /api/users/{id}
  *   PUT    /api/users/{id}
  *   DELETE /api/users/{id}
- *   GET    /api/users/{id}/evenements   (OpenFeign -> service-evenements)
+ *   GET    /api/users/{id}/reservations   (OpenFeign -> service-reservation)
  */
 @RestController
 @RequestMapping("/api/users")
@@ -52,9 +52,9 @@ public class UtilisateurController {
         service.delete(id);
     }
 
-    /** OpenFeign demo: returns the user enriched with their events from service-evenements. */
-    @GetMapping("/{id}/evenements")
-    public UtilisateurAvecEvenements getUtilisateurAvecEvenements(@PathVariable Long id) {
-        return service.getUtilisateurAvecEvenements(id);
+    /** OpenFeign demo: returns the user enriched with their reservations from service-reservation. */
+    @GetMapping("/{id}/reservations")
+    public UtilisateurAvecReservations getUtilisateurAvecReservations(@PathVariable Long id) {
+        return service.getUtilisateurAvecReservations(id);
     }
 }
