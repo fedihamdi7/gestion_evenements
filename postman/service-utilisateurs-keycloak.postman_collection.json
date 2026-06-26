@@ -1,0 +1,149 @@
+{
+  "info": {
+    "name": "service-utilisateurs (Keycloak)",
+    "description": "Test the Keycloak-secured Users microservice.\n\nFlow:\n1. Register a user (public)\n2. Login -> saves the Keycloak JWT into {{accessToken}} automatically\n3. Call the secured CRUD endpoints (they reuse {{accessToken}})\n4. '401 without token' shows that security is really enforced.\n\nStart order: eureka -> keycloak (./keycloak/run-keycloak.ps1) -> service-utilisateurs -> api-gateway.\n\nBy DEFAULT {{baseUrl}} = the API GATEWAY (http://localhost:9090). The gateway routes /api/users/** to service-utilisateurs via Eureka and forwards the Bearer token, so the paths are identical. To bypass the gateway and hit the service directly, change {{baseUrl}} to http://localhost:8081.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:9090" },
+    { "key": "keycloakUrl", "value": "http://localhost:8080" },
+    { "key": "realm", "value": "gestion-evenements" },
+    { "key": "clientId", "value": "service-utilisateurs" },
+    { "key": "accessToken", "value": "" },
+    { "key": "userId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "1. Register (PARTICIPANT)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/api/users/register", "host": ["{{baseUrl}}"], "path": ["api","users","register"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"Test\",\n  \"prenom\": \"Postman\",\n  \"email\": \"postman@esprit.tn\",\n  \"motDePasse\": \"password\",\n  \"role\": \"PARTICIPANT\"\n}"
+        },
+        "description": "Public. Creates the user in Keycloak + a local profile row. Returns the user (no password)."
+      }
+    },
+    {
+      "name": "2. Login (saves token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.code === 200);",
+              "const body = pm.response.json();",
+              "pm.expect(body.accessToken, 'accessToken present').to.be.a('string');",
+              "pm.collectionVariables.set('accessToken', body.accessToken);",
+              "console.log('Saved accessToken (' + body.expiresIn + 's): ' + body.accessToken.substring(0, 25) + '...');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/api/users/login", "host": ["{{baseUrl}}"], "path": ["api","users","login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"postman@esprit.tn\",\n  \"motDePasse\": \"password\"\n}"
+        },
+        "description": "Public. Keycloak verifies the password and returns a real JWT, stored into {{accessToken}}."
+      }
+    },
+    {
+      "name": "3. Get all users (secured)",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api","users"] },
+        "description": "Requires a valid Keycloak JWT. Run 'Login' first."
+      }
+    },
+    {
+      "name": "4. Get all users WITHOUT token (expect 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [ "pm.test('401 Unauthorized (security is enforced)', () => pm.response.code === 401);" ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api","users"] },
+        "description": "No Authorization header -> Keycloak resource server rejects it with 401."
+      }
+    },
+    {
+      "name": "5. Get user by id (secured)",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/api/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["api","users","{{userId}}"] }
+      }
+    },
+    {
+      "name": "6. Update user (secured)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["api","users","{{userId}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"prenom\": \"PostmanUpdated\",\n  \"role\": \"ORGANISATEUR\"\n}"
+        },
+        "description": "Updates the local profile AND the matching Keycloak user (name/role)."
+      }
+    },
+    {
+      "name": "7. Get user + reservations (OpenFeign, secured)",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/api/users/{{userId}}/reservations", "host": ["{{baseUrl}}"], "path": ["api","users","{{userId}}","reservations"] },
+        "description": "Feign call to service-reservation. Degrades gracefully if that service is down."
+      }
+    },
+    {
+      "name": "8. Delete user (secured)",
+      "request": {
+        "method": "DELETE",
+        "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/api/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["api","users","{{userId}}"] },
+        "description": "Removes the user from BOTH Keycloak and the local mirror."
+      }
+    },
+    {
+      "name": "Keycloak: raw token (debug)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded" } ],
+        "url": {
+          "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+          "host": ["{{keycloakUrl}}"],
+          "path": ["realms","{{realm}}","protocol","openid-connect","token"]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "grant_type", "value": "password" },
+            { "key": "client_id", "value": "{{clientId}}" },
+            { "key": "username", "value": "postman@esprit.tn" },
+            { "key": "password", "value": "password" }
+          ]
+        },
+        "description": "Talks to Keycloak directly (bypassing our service) to see the raw token response. Useful for debugging."
+      }
+    }
+  ]
+}

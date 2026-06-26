@@ -35,9 +35,12 @@ public class Utilisateur {
     @Column(nullable = false, unique = true)              // two users cannot share an email
     private String email;
 
-    /** Always stored BCrypt-hashed, never in clear text and never returned to clients. */
-    @Column(nullable = false)
-    private String motDePasse;
+    /**
+     * The id of this user IN KEYCLOAK (a UUID). Passwords are no longer stored here — Keycloak
+     * owns them. We keep this so we can update/delete the matching Keycloak user from our CRUD.
+     */
+    @Column(unique = true)
+    private String keycloakId;
 
     @Enumerated(EnumType.STRING)                          // store "PARTICIPANT" not 0/1/2
     @Column(nullable = false)

@@ -56,12 +56,13 @@
 			<artifactId>spring-cloud-starter-openfeign</artifactId>
 		</dependency>
 
-		<!-- BCrypt password hashing ONLY. This is the standalone crypto module, NOT the full
-		     spring-boot-starter-security, so it adds NO security filter chain (the gateway demo
-		     stays simple). Version is managed by the Spring Boot parent. -->
+		<!-- Keycloak integration: this service is an OAuth2 Resource Server. It validates the
+		     JWT issued by Keycloak (signature + expiry) and reads the user's roles from the
+		     token. Passwords are NEVER handled here anymore — Keycloak owns them.
+		     This starter also pulls in spring-security (the filter chain). -->
 		<dependency>
-			<groupId>org.springframework.security</groupId>
-			<artifactId>spring-security-crypto</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
 
 		<dependency>

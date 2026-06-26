@@ -1,0 +1,27 @@
+{
+  "realm": "gestion-evenements",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "ADMIN", "description": "Administrateur de la plateforme" },
+      { "name": "ORGANISATEUR", "description": "Organisateur d'evenements" },
+      { "name": "PARTICIPANT", "description": "Participant aux evenements" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "service-utilisateurs",
+      "name": "service-utilisateurs (frontend / direct login)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
+    }
+  ]
+}

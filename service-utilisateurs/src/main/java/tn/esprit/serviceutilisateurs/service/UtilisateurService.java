@@ -1,9 +1,9 @@
 package tn.esprit.serviceutilisateurs.service;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import tn.esprit.serviceutilisateurs.client.ReservationClient;
 import tn.esprit.serviceutilisateurs.client.ReservationDto;
+import tn.esprit.serviceutilisateurs.dto.AuthResponse;
 import tn.esprit.serviceutilisateurs.dto.LoginRequest;
 import tn.esprit.serviceutilisateurs.dto.RegisterRequest;
 import tn.esprit.serviceutilisateurs.dto.UpdateRequest;
@@ -30,34 +31,50 @@ import tn.esprit.serviceutilisateurs.repository.UtilisateurRepository;
 public class UtilisateurService {
 
     private final UtilisateurRepository repository;
-    private final PasswordEncoder passwordEncoder;
+    private final KeycloakService keycloak;              // talks to the Keycloak login server
     private final ReservationClient reservationClient;   // the OpenFeign client
 
-    // ---------- Authentication ----------
+    // ---------- Authentication (delegated to Keycloak) ----------
 
-    /** Register a new user: validate uniqueness, hash the password, save. */
+    /**
+     * Register a new user: create it in Keycloak (which owns the password), then keep a small
+     * local "profile mirror" row in MySQL so the rest of the app (CRUD, OpenFeign by id) keeps
+     * working. The password never touches our database.
+     */
     public UtilisateurResponse register(RegisterRequest req) {
         if (repository.existsByEmail(req.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email deja utilise: " + req.getEmail());
         }
+        Role role = req.getRole() != null ? req.getRole() : Role.PARTICIPANT;
+
+        // 1. create in Keycloak (source of truth for identity + password)
+        String keycloakId = keycloak.createUser(
+                req.getEmail(), req.getPrenom(), req.getNom(), req.getMotDePasse(), role);
+
+        // 2. mirror a profile row locally (no password stored)
         Utilisateur u = Utilisateur.builder()
                 .nom(req.getNom())
                 .prenom(req.getPrenom())
                 .email(req.getEmail())
-                .motDePasse(passwordEncoder.encode(req.getMotDePasse()))    // BCrypt hash
-                .role(req.getRole() != null ? req.getRole() : Role.PARTICIPANT)
+                .keycloakId(keycloakId)
+                .role(role)
                 .build();
         return toResponse(repository.save(u));
     }
 
-    /** Login: check the email exists and the password matches the stored BCrypt hash. */
-    public UtilisateurResponse login(LoginRequest req) {
-        Utilisateur u = repository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Identifiants invalides"));
-        if (!passwordEncoder.matches(req.getMotDePasse(), u.getMotDePasse())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Identifiants invalides");
-        }
-        return toResponse(u);
+    /**
+     * Login: Keycloak verifies the credentials and issues a JWT. We just hand that token back
+     * to the caller, who then sends it as "Authorization: Bearer ..." on secured endpoints.
+     */
+    public AuthResponse login(LoginRequest req) {
+        Map<String, Object> token = keycloak.login(req.getEmail(), req.getMotDePasse());
+        return AuthResponse.builder()
+                .accessToken((String) token.get("access_token"))
+                .refreshToken((String) token.get("refresh_token"))
+                .tokenType((String) token.get("token_type"))
+                .expiresIn(token.get("expires_in") == null ? null
+                        : ((Number) token.get("expires_in")).longValue())
+                .build();
     }
 
     // ---------- CRUD ----------
@@ -72,19 +89,21 @@ public class UtilisateurService {
 
     public UtilisateurResponse update(Long id, UpdateRequest req) {
         Utilisateur u = getOrThrow(id);
-        if (req.getNom() != null)        u.setNom(req.getNom());
-        if (req.getPrenom() != null)     u.setPrenom(req.getPrenom());
-        if (req.getEmail() != null)      u.setEmail(req.getEmail());
-        if (req.getRole() != null)       u.setRole(req.getRole());
-        if (req.getMotDePasse() != null) u.setMotDePasse(passwordEncoder.encode(req.getMotDePasse()));
+        if (req.getNom() != null)    u.setNom(req.getNom());
+        if (req.getPrenom() != null) u.setPrenom(req.getPrenom());
+        if (req.getEmail() != null)  u.setEmail(req.getEmail());
+        if (req.getRole() != null)   u.setRole(req.getRole());
+
+        // mirror the profile/role change into Keycloak (password changes are handled by Keycloak itself)
+        keycloak.updateUser(u.getKeycloakId(), req.getPrenom(), req.getNom(), req.getEmail(), req.getRole());
+
         return toResponse(repository.save(u));
     }
 
     public void delete(Long id) {
-        if (!repository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilisateur introuvable: " + id);
-        }
-        repository.deleteById(id);
+        Utilisateur u = getOrThrow(id);
+        keycloak.deleteUser(u.getKeycloakId());   // remove from Keycloak first
+        repository.delete(u);                     // then drop the local mirror row
     }
 
     // ---------- OpenFeign demo (requirement #3) ----------
