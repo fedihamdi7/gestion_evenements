@@ -41,6 +41,8 @@ public class SecurityConfig {
                 // public: account creation + login + health
                 .requestMatchers(HttpMethod.POST, "/api/users/register", "/api/users/login").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
+                // public: Swagger/OpenAPI docs so the API Gateway can aggregate them
+                .requestMatchers("/api/users/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // IMPORTANT: when a controller throws (e.g. 409 duplicate email), Spring forwards
                 // the request to /error. The security filter runs again on that forward, so /error
                 // must be public — otherwise every error is masked as a misleading 401.

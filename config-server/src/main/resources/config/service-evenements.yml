@@ -1,0 +1,25 @@
+server:
+  port: 8082
+
+spring:
+  data:
+    mongodb:
+      database: db_evenements
+
+de:
+  flapdoodle:
+    mongodb:
+      embedded:
+        version: 7.0.0
+
+# Swagger/OpenAPI — served under the gateway route /api/events/** for aggregation
+springdoc:
+  api-docs:
+    path: /api/events/v3/api-docs
+
+# This service uses an embedded MongoDB (flapdoodle), so it overrides the shared
+# prefer-ip-address=true with a fixed hostname for cleaner Eureka registration.
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
