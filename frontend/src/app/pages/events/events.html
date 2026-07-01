@@ -1,0 +1,104 @@
+<section class="events">
+  <!-- left: list of events -->
+  <aside class="list">
+    <h3>Événements</h3>
+    @for (e of events(); track e.id) {
+      <button
+        class="ev"
+        [class.active]="selected()?.id === e.id"
+        (click)="openEvent(e)"
+      >
+        <span class="ev-title">{{ e.title }}</span>
+        <span class="ev-meta">{{ e.category }} · {{ e.date | date: 'mediumDate' }}</span>
+      </button>
+    } @empty {
+      <p class="muted">Aucun événement.</p>
+    }
+  </aside>
+
+  <!-- right: selected event details -->
+  <div class="detail">
+    @if (selected(); as e) {
+      <header class="detail-head">
+        <h2>{{ e.title }}</h2>
+        <p class="muted">
+          {{ e.category }} · 📍 {{ e.location }} · 📅 {{ e.date | date: 'fullDate' }} ·
+          👥 {{ e.capacity }} places
+        </p>
+      </header>
+
+      @if (message(); as m) {
+        <div class="banner" [class.ok]="m.ok" [class.err]="!m.ok">{{ m.text }}</div>
+      }
+
+      <div class="actions">
+        @if (iBooked()) {
+          <span class="booked">✓ Vous avez réservé cet événement</span>
+        } @else {
+          <button (click)="book()" [disabled]="myUserId() === null">Réserver</button>
+        }
+      </div>
+
+      <!-- who booked -->
+      <div class="block">
+        <h4>Participants ({{ bookers().length }})</h4>
+        @for (b of bookers(); track b.id) {
+          <div class="participant">
+            <span class="avatar">{{ userName(b.userId).charAt(0) }}</span>
+            <span>{{ userName(b.userId) }}</span>
+            <span class="tag">{{ b.status }}</span>
+          </div>
+        } @empty {
+          <p class="muted">Personne n'a encore réservé.</p>
+        }
+      </div>
+
+      <!-- ratings -->
+      <div class="block">
+        <h4>
+          Avis ({{ ratings().length }})
+          @if (ratings().length) {
+            <span class="avg">★ {{ average() }}/5</span>
+          }
+        </h4>
+        @for (a of ratings(); track a.id) {
+          <div class="avis">
+            <span class="stars">{{ stars(a.note) }}</span>
+            <span class="by">{{ userName(a.utilisateurId) }}</span>
+            @if (a.commentaire) {
+              <p class="comment">{{ a.commentaire }}</p>
+            }
+          </div>
+        } @empty {
+          <p class="muted">Aucun avis pour le moment.</p>
+        }
+
+        <!-- only bookers can rate -->
+        @if (iBooked()) {
+          <form class="rate" (ngSubmit)="submitRating()">
+            <label>Votre note</label>
+            <select [ngModel]="note()" (ngModelChange)="note.set(+$event)" name="note">
+              @for (n of [5, 4, 3, 2, 1]; track n) {
+                <option [value]="n">{{ stars(n) }} ({{ n }})</option>
+              }
+            </select>
+            <input
+              [ngModel]="commentaire()"
+              (ngModelChange)="commentaire.set($event)"
+              name="commentaire"
+              placeholder="Un commentaire (optionnel)…"
+              autocomplete="off"
+            />
+            <button type="submit">Publier l'avis</button>
+          </form>
+        } @else {
+          <p class="hint">Réservez cet événement pour pouvoir laisser un avis.</p>
+        }
+      </div>
+    } @else {
+      <div class="empty">
+        <p>Choisissez un événement à gauche.</p>
+      </div>
+    }
+  </div>
+</section>

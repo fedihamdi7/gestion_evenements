@@ -41,3 +41,33 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
 }
+
+// service-evenements
+export interface Event {
+  id: string;
+  title: string;
+  category: string;
+  location: string;
+  date: string;
+  capacity: number;
+}
+
+// service-reservation
+export interface Reservation {
+  id?: number;
+  userId: number;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  status: string;
+}
+
+// service-avis
+export interface Avis {
+  id?: number;
+  utilisateurId: number;
+  evenementId: string;
+  note: number;
+  commentaire?: string;
+  dateCreation?: string;
+}

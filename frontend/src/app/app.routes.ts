@@ -14,6 +14,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/users/users').then((m) => m.UsersPage),
   },
   {
+    path: 'events',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/events/events').then((m) => m.EventsPage),
+  },
+  {
     path: 'chat',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/chat/chat').then((m) => m.ChatPage),
