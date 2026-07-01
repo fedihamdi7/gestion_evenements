@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { createConnection } from 'mysql2/promise';
 import { AppModule } from './app.module';
 import { registerWithEureka } from './eureka';
@@ -22,6 +23,20 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   // Let the Angular frontend (http://localhost:4200) call the REST + WebSocket API.
   app.enableCors({ origin: '*' });
+
+  // Swagger/OpenAPI — the JSON is served at /api/messages/v3/api-docs so the API Gateway
+  // can aggregate it in its Swagger UI dropdown, like the Java services.
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Service Messaging API')
+    .setDescription('Instant messaging (REST + Socket.IO)')
+    .setVersion('1.0')
+    .addServer('/')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/messages/swagger-ui', app, document, {
+    jsonDocumentUrl: 'api/messages/v3/api-docs',
+  });
 
   const port = Number(process.env.PORT || 8085);
   await app.listen(port);

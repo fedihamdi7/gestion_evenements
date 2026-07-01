@@ -1,0 +1,32 @@
+package tn.esprit.serviceutilisateurs.config;
+
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
+
+/**
+ * Makes Swagger usable behind the gateway:
+ * - server "/" so "Try it out" targets the SAME origin Swagger was loaded from
+ *   (the API Gateway :9090) instead of this service's own port.
+ * - a Bearer "Authorize" button so a Keycloak JWT can be sent with each call.
+ */
+@Configuration
+public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI openAPI() {
+        return new OpenAPI()
+                .info(new Info().title("Service Utilisateurs API").version("1.0"))
+                .servers(List.of(new Server().url("/")))
+                .components(new Components().addSecuritySchemes("bearerAuth",
+                        new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")))
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"));
+    }
+}
