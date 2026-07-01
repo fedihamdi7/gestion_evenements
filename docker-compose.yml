@@ -22,7 +22,9 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3306:3306"
+      # host 3307 -> container 3306, to avoid clashing with the local MySQL84 service on 3306.
+      # (services inside Docker still reach it as mysql:3306 on the internal network.)
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -120,6 +122,10 @@ services:
     environment:
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
+      # its config sets hostname=localhost/prefer-ip-address=false (fine locally, wrong in
+      # Docker). Override so it registers by container IP and the gateway can reach it.
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      EUREKA_INSTANCE_HOSTNAME: service-evenements
     ports:
       - "8082:8082"
     depends_on:
