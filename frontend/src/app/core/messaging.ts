@@ -6,16 +6,14 @@ import { environment } from '../../environments/environment';
 import { ChatMessage } from './models';
 
 /**
- * Talks to service-messaging DIRECTLY (same host as the realtime socket, :8085):
- *  - REST for conversation history + contacts
- *  - Socket.IO for real-time send/receive
- * We bypass the API Gateway here so history + live chat always work together
- * (the gateway route for /api/messages still exists, but the frontend doesn't depend on it).
+ * Talks to service-messaging THROUGH the API Gateway (:9090), like every other call:
+ *  - REST (/api/messages) for conversation history + contacts
+ *  - Socket.IO (/socket.io) proxied by the gateway as a WebSocket for real-time send/receive
  */
 @Injectable({ providedIn: 'root' })
 export class MessagingService {
   private http = inject(HttpClient);
-  private base = `${environment.messagingWsUrl}/api/messages`;
+  private base = `${environment.apiUrl}/api/messages`;
   private socket?: Socket;
 
   /** fires once per message pushed by the server (incoming + the echo of what we sent) */
@@ -25,7 +23,7 @@ export class MessagingService {
   /** Open the realtime connection, identifying ourselves by email. */
   connect(email: string): void {
     if (this.socket) return;
-    this.socket = io(environment.messagingWsUrl, {
+    this.socket = io(environment.apiUrl, {
       auth: { email },
       transports: ['websocket', 'polling'],
     });
