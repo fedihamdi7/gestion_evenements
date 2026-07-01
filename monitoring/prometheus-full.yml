@@ -1,0 +1,31 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+# Used when EVERYTHING runs in Docker (the full docker-compose.yml): Prometheus scrapes
+# the services by their container name on the shared network.
+scrape_configs:
+  - job_name: 'api-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['api-gateway:9090']
+
+  - job_name: 'service-utilisateurs'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['service-utilisateurs:8081']
+
+  - job_name: 'service-evenements'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['service-evenements:8082']
+
+  - job_name: 'service-avis'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['service-avis:8083']
+
+  - job_name: 'service-reservation'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['service-reservation:8084']

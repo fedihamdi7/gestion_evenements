@@ -1,0 +1,228 @@
+# =============================================================================
+# Full stack in Docker — one command runs EVERYTHING:
+#   docker compose up --build
+#
+# Infra:   mysql, rabbitmq, keycloak
+# Core:    config-server -> eureka-server
+# Services: utilisateurs, evenements, avis, reservation, messaging
+# Edge:    api-gateway (single entry point + JWT security)
+# Monitoring: prometheus + grafana
+#
+# Inside Docker services find each other by SERVICE NAME, so we pass EUREKA_HOST,
+# MYSQL_HOST, KEYCLOAK_HOST, RABBITMQ_HOST, CONFIG_SERVER_URL to override the
+# ${...:localhost} placeholders in the centralized config.
+# =============================================================================
+
+services:
+
+  # ---------------- Infrastructure ----------------
+  mysql:
+    image: mysql:8.4
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [esprit-net]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # management UI (guest/guest)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [esprit-net]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1.4
+    container_name: keycloak
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    networks: [esprit-net]
+
+  # ---------------- Config Server (everyone waits on it) ----------------
+  config-server:
+    build: ./config-server
+    container_name: config-server
+    ports:
+      - "8888:8888"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks: [esprit-net]
+
+  # ---------------- Eureka registry ----------------
+  eureka-server:
+    build: ./eureka-server
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    depends_on:
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks: [esprit-net]
+
+  # ---------------- Business services ----------------
+  service-utilisateurs:
+    build: ./service-utilisateurs
+    container_name: service-utilisateurs
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_HOST: eureka-server
+      MYSQL_HOST: mysql
+      KEYCLOAK_HOST: keycloak
+      RABBITMQ_HOST: rabbitmq
+    ports:
+      - "8081:8081"
+    depends_on:
+      config-server: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+      mysql: { condition: service_healthy }
+      keycloak: { condition: service_started }
+      rabbitmq: { condition: service_started }
+    restart: on-failure
+    networks: [esprit-net]
+
+  service-evenements:
+    build: ./service-evenements
+    container_name: service-evenements
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_HOST: eureka-server
+    ports:
+      - "8082:8082"
+    depends_on:
+      config-server: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+    restart: on-failure
+    networks: [esprit-net]
+
+  service-avis:
+    build: ./service-avis
+    container_name: service-avis
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_HOST: eureka-server
+      MYSQL_HOST: mysql
+    ports:
+      - "8083:8083"
+    depends_on:
+      config-server: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+      mysql: { condition: service_healthy }
+    restart: on-failure
+    networks: [esprit-net]
+
+  service-reservation:
+    build: ./ReservationEvenement
+    container_name: service-reservation
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_HOST: eureka-server
+      RABBITMQ_HOST: rabbitmq
+    ports:
+      - "8084:8084"
+    depends_on:
+      config-server: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+      rabbitmq: { condition: service_started }
+    restart: on-failure
+    networks: [esprit-net]
+
+  service-messaging:
+    build: ./service-messaging
+    container_name: service-messaging
+    environment:
+      EUREKA_HOST: eureka-server
+      MYSQL_HOST: mysql
+      PORT: 8085
+      # register in Eureka under the container name so the gateway can reach it
+      INSTANCE_HOST: service-messaging
+      INSTANCE_IP: service-messaging
+    ports:
+      - "8085:8085"
+    depends_on:
+      eureka-server: { condition: service_healthy }
+      mysql: { condition: service_healthy }
+    restart: on-failure
+    networks: [esprit-net]
+
+  # ---------------- API Gateway (entry point + JWT security) ----------------
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_HOST: eureka-server
+      KEYCLOAK_HOST: keycloak
+    ports:
+      - "9090:9090"
+    depends_on:
+      config-server: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+      keycloak: { condition: service_started }
+    restart: on-failure
+    networks: [esprit-net]
+
+  # ---------------- Monitoring ----------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus-full.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9095:9090"
+    depends_on:
+      - api-gateway
+    networks: [esprit-net]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks: [esprit-net]
+
+volumes:
+  mysql_data:
+
+networks:
+  esprit-net:
+    driver: bridge
