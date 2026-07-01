@@ -8,3 +8,10 @@ export const authGuard: CanActivateFn = () => {
   const router = inject(Router);
   return auth.isLoggedIn() ? true : router.createUrlTree(['/login']);
 };
+
+/** Keeps already-logged-in users OFF the login page, redirecting them to /users. */
+export const guestGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.isLoggedIn() ? router.createUrlTree(['/users']) : true;
+};
