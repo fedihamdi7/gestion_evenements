@@ -38,6 +38,14 @@ export class AuthService {
     return { username: c.preferred_username ?? c.email ?? '—', roles };
   });
 
+  /** current user's email — the identity used for chat (present in the JWT). */
+  readonly currentEmail = computed(() => {
+    const t = this.token();
+    if (!t) return null;
+    const c = this.decode(t);
+    return c.email ?? c.preferred_username ?? null;
+  });
+
   register(body: RegisterRequest): Observable<User> {
     return this.http.post<User>(`${this.base}/register`, body);
   }

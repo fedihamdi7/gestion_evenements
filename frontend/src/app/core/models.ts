@@ -32,3 +32,12 @@ export interface AuthResponse {
   tokenType: string;
   expiresIn: number;
 }
+
+// A chat message from service-messaging (users identified by email).
+export interface ChatMessage {
+  id: number;
+  sender: string;
+  receiver: string;
+  content: string;
+  createdAt: string;
+}
