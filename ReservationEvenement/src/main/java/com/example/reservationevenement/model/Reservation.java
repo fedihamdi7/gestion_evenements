@@ -17,6 +17,9 @@ public class Reservation {
 
     private Long userId;
 
+    // Mongo id of the booked event (links to service-evenements + service-avis)
+    private String eventId;
+
     private String eventTitle;
 
     private String eventDate;

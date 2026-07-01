@@ -12,7 +12,7 @@ public class AvisRequest {
     private Long utilisateurId;
 
     @NotNull(message = "L'identifiant de l'événement est obligatoire")
-    private Long evenementId;
+    private String evenementId;
 
     @NotNull(message = "La note est obligatoire")
     @Min(value = 1, message = "La note minimale est 1")

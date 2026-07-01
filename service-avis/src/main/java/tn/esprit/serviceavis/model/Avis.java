@@ -22,7 +22,7 @@ public class Avis {
     private Long utilisateurId;
 
     @Column(nullable = false)
-    private Long evenementId;
+    private String evenementId;
 
     @Column(nullable = false)
     private Integer note;

@@ -40,6 +40,12 @@ public class ReservationController {
         return repository.findByUserId(userId);
     }
 
+    // Who booked a given event — used by the event-details page.
+    @GetMapping("/event/{eventId}")
+    public List<Reservation> getByEvent(@PathVariable String eventId) {
+        return repository.findByEventId(eventId);
+    }
+
     @PostMapping
     public Reservation create(@RequestBody Reservation reservation) {
         return repository.save(reservation);

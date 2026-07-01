@@ -13,7 +13,7 @@ public class AvisResponse {
 
     private Long id;
     private Long utilisateurId;
-    private Long evenementId;
+    private String evenementId;
     private Integer note;
     private String commentaire;
     private String dateCreation;

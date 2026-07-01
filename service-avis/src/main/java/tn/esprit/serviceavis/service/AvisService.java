@@ -44,7 +44,7 @@ public class AvisService {
         return toResponse(getOrThrow(id));
     }
 
-    public List<AvisResponse> findByEvenement(Long evenementId) {
+    public List<AvisResponse> findByEvenement(String evenementId) {
         return repository.findByEvenementId(evenementId).stream().map(this::toResponse).toList();
     }
 
@@ -75,7 +75,7 @@ public class AvisService {
      */
     public AvisAvecDetailsResponse getAvisAvecDetails(String evenementId) {
         List<AvisResponse> avisList = repository
-                .findByEvenementId(Long.parseLong(evenementId))
+                .findByEvenementId(evenementId)
                 .stream().map(this::toResponse).toList();
 
         double moyenne = avisList.stream()
