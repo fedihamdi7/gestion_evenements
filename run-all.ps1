@@ -38,6 +38,7 @@ $allPorts = [ordered]@{
     "service-evenements"   = 8082
     "service-avis"         = 8083
     "service-reservation"  = 8084
+    "service-messaging"    = 8085
     "api-gateway"          = 9090
 }
 
@@ -77,6 +78,15 @@ function Start-ModuleStep {
     $null = Wait-Port -Port $Port -Name $Title -TimeoutSec $TimeoutSec
 }
 
+# Same idea for the NestJS (Node) messaging service — launched via npm, not Maven.
+function Start-NodeStep {
+    param([string]$Dir, [string]$Title, [int]$Port, [int]$TimeoutSec = 240)
+    $path = Join-Path $root $Dir
+    $nodeHelper = Join-Path $root "scripts\start-messaging.ps1"
+    Launch -Title $Title -PsArgs @("-NoExit", "-ExecutionPolicy", "Bypass", "-File", $nodeHelper, "-Dir", $path, "-Title", $Title)
+    $null = Wait-Port -Port $Port -Name $Title -TimeoutSec $TimeoutSec
+}
+
 function Wait-Port {
     param([int]$Port, [string]$Name, [int]$TimeoutSec = 180)
     Write-Host "Waiting for $Name (port $Port)..." -ForegroundColor Cyan
@@ -112,6 +122,9 @@ Start-ModuleStep -Dir "service-utilisateurs" -Title "4-service-utilisateurs" -Po
 Start-ModuleStep -Dir "service-evenements"   -Title "5-service-evenements"   -Port 8082 -TimeoutSec 300
 Start-ModuleStep -Dir "service-avis"         -Title "6-service-avis"         -Port 8083
 Start-ModuleStep -Dir "ReservationEvenement" -Title "7-service-reservation"  -Port 8084
+
+# NestJS instant-messaging service (needs MySQL). First run does `npm install`.
+Start-NodeStep   -Dir "service-messaging"    -Title "8-service-messaging"   -Port 8085
 
 # 5. API Gateway last (single entry point + Swagger UI).
 

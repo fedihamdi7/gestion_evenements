@@ -9,6 +9,7 @@ $ports = @{
     "service-evenements"   = 8082
     "service-avis"         = 8083
     "service-reservation"  = 8084
+    "service-messaging"    = 8085
     "api-gateway"          = 9090
     "keycloak"             = 8080
 }
