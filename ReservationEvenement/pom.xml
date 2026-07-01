@@ -41,6 +41,12 @@
             <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
 
+        <!-- RabbitMQ — publishes a "reservation.created" event (async inter-service comm) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
         <!-- Eureka client — registers this service in the Eureka registry -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
