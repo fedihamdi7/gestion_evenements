@@ -35,6 +35,9 @@ Copy-Item (Join-Path $here "realm-export.json") (Join-Path $importDir "realm-exp
 $env:KC_BOOTSTRAP_ADMIN_USERNAME = "admin"
 $env:KC_BOOTSTRAP_ADMIN_PASSWORD = "admin"
 
+# Cap Keycloak's heap (low-RAM machines) — plenty for a demo realm.
+$env:JAVA_OPTS_KC_HEAP = "-Xms64m -Xmx512m"
+
 # 4. Start Keycloak in dev mode on port 8080 and import the realm
 Write-Host "Starting Keycloak on http://localhost:8080 (admin/admin). Ctrl+C to stop." -ForegroundColor Green
 & (Join-Path $kcDir "bin\kc.bat") start-dev --http-port 8080 --import-realm

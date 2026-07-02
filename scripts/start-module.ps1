@@ -7,7 +7,10 @@ param(
 $host.UI.RawUI.WindowTitle = $Title
 Set-Location $Dir
 Write-Host "=== $Title ===" -ForegroundColor Green
-# Disable Spring DevTools auto-restart for orchestrated runs: it can race to re-bind the
-# port during boot and cause an intermittent "Unable to start web server". (No effect on
-# modules that don't use DevTools.)
-.\mvnw.cmd spring-boot:run "-Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false"
+# JVM flags to keep memory small on low-RAM machines:
+#   -Xmx256m         cap the heap (default lets each JVM grab ~25% of RAM)
+#   -XX:+UseSerialGC lightweight GC; avoids G1's large native mark stacks (the OOM you saw)
+#   -Xss512k         smaller thread stacks
+# Plus disable DevTools auto-restart (can race to re-bind the port during boot).
+$jvm = "-Xmx256m -XX:+UseSerialGC -Xss512k -Dspring.devtools.restart.enabled=false"
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.jvmArguments=$jvm"
