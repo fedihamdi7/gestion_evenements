@@ -1,6 +1,19 @@
-version: '3.8'
-
+# Lightweight infra for LOCAL (run-all.ps1) mode: RabbitMQ + Prometheus + Grafana in
+# Docker, while the microservices run on the host. Start with:
+#   docker compose -f monitoring/docker-compose-monitoring.yml up -d
 services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"     # AMQP — the host services connect here
+      - "15672:15672"   # management UI (guest/guest)
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
