@@ -35,7 +35,9 @@
         @if (iBooked()) {
           <span class="booked">✓ Vous avez réservé cet événement</span>
         } @else {
-          <button (click)="book()" [disabled]="myUserId() === null">Réserver</button>
+          <button (click)="book()" [disabled]="myUserId() === null || booking()">
+            {{ booking() ? 'Réservation en cours…' : 'Réserver' }}
+          </button>
         }
       </div>
 
@@ -89,7 +91,9 @@
               placeholder="Un commentaire (optionnel)…"
               autocomplete="off"
             />
-            <button type="submit">Publier l'avis</button>
+            <button type="submit" [disabled]="rating()">
+              {{ rating() ? 'Envoi…' : "Publier l'avis" }}
+            </button>
           </form>
         } @else {
           <p class="hint">Réservez cet événement pour pouvoir laisser un avis.</p>

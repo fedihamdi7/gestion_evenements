@@ -38,6 +38,10 @@ export class EventsPage implements OnInit {
   note = signal(5);
   commentaire = signal('');
 
+  // in-flight flags to disable buttons (first call can be slow to warm up the service)
+  booking = signal(false);
+  rating = signal(false);
+
   readonly average = computed(() => {
     const r = this.ratings();
     if (!r.length) return 0;
@@ -87,7 +91,8 @@ export class EventsPage implements OnInit {
   book() {
     const e = this.selected();
     const uid = this.myUserId();
-    if (!e || uid == null) return;
+    if (!e || uid == null || this.booking()) return;
+    this.booking.set(true);
     const reservation: Reservation = {
       userId: uid,
       eventId: e.id,
@@ -98,16 +103,21 @@ export class EventsPage implements OnInit {
     this.api.book(reservation).subscribe({
       next: () => {
         this.message.set({ text: `Réservation confirmée pour "${e.title}".`, ok: true });
+        this.booking.set(false);
         this.loadBookers(e.id);
       },
-      error: () => this.message.set({ text: 'Réservation échouée.', ok: false }),
+      error: () => {
+        this.message.set({ text: 'Réservation échouée.', ok: false });
+        this.booking.set(false);
+      },
     });
   }
 
   submitRating() {
     const e = this.selected();
     const uid = this.myUserId();
-    if (!e || uid == null) return;
+    if (!e || uid == null || this.rating()) return;
+    this.rating.set(true);
     const avis: Avis = {
       utilisateurId: uid,
       evenementId: e.id,
@@ -119,9 +129,13 @@ export class EventsPage implements OnInit {
         this.message.set({ text: 'Merci pour votre avis !', ok: true });
         this.commentaire.set('');
         this.note.set(5);
+        this.rating.set(false);
         this.loadRatings(e.id);
       },
-      error: () => this.message.set({ text: 'Avis échoué.', ok: false }),
+      error: () => {
+        this.message.set({ text: 'Avis échoué.', ok: false });
+        this.rating.set(false);
+      },
     });
   }
 
