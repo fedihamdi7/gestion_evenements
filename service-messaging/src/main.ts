@@ -21,8 +21,10 @@ async function bootstrap() {
   await ensureDatabase();
 
   const app = await NestFactory.create(AppModule);
-  // Let the Angular frontend (http://localhost:4200) call the REST + WebSocket API.
-  app.enableCors({ origin: '*' });
+  // NOTE: no app.enableCors() here — all traffic goes through the API Gateway, which
+  // adds the CORS headers. Adding them here too produced DUPLICATE
+  // Access-Control-Allow-Origin headers, which browsers reject (chat history failed).
+  // (The Socket.IO handshake CORS is configured separately in the WebSocket gateway.)
 
   // Swagger/OpenAPI — the JSON is served at /api/messages/v3/api-docs so the API Gateway
   // can aggregate it in its Swagger UI dropdown, like the Java services.
