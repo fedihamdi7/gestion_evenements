@@ -15,7 +15,9 @@ interface JwtClaims {
 
 /**
  * Handles authentication against service-utilisateurs (which delegates to Keycloak).
- * Keeps the JWT in localStorage and exposes the current user as signals.
+ * Keeps the JWT in sessionStorage (PER-TAB) so you can be logged in as different users
+ * in different tabs of the same browser (e.g. to demo chat between two accounts).
+ * localStorage would be shared across tabs and the second login would clobber the first.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -23,7 +25,7 @@ export class AuthService {
   private base = `${environment.apiUrl}/api/users`;
 
   /** current raw JWT (null when logged out) */
-  readonly token = signal<string | null>(localStorage.getItem(TOKEN_KEY));
+  readonly token = signal<string | null>(sessionStorage.getItem(TOKEN_KEY));
 
   readonly isLoggedIn = computed(() => !!this.token());
 
@@ -53,14 +55,14 @@ export class AuthService {
   login(body: LoginRequest): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.base}/login`, body).pipe(
       tap((res) => {
-        localStorage.setItem(TOKEN_KEY, res.accessToken);
+        sessionStorage.setItem(TOKEN_KEY, res.accessToken);
         this.token.set(res.accessToken);
       }),
     );
   }
 
   logout(): void {
-    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
     this.token.set(null);
   }
 

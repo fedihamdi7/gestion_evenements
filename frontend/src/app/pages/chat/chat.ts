@@ -66,7 +66,7 @@ export class ChatPage implements OnInit, OnDestroy {
         this.users.set(list.filter((u) => u.email !== this.me));
         // Re-open the last conversation after a refresh so its history reloads
         // (SPA state is lost on refresh; the messages are still in the DB).
-        const savedEmail = localStorage.getItem('chat_selected');
+        const savedEmail = sessionStorage.getItem('chat_selected');
         if (savedEmail) {
           const u = this.users().find((x) => x.email === savedEmail);
           if (u) this.openChat(u);
@@ -83,7 +83,7 @@ export class ChatPage implements OnInit, OnDestroy {
 
   openChat(u: User) {
     this.selected.set(u);
-    localStorage.setItem('chat_selected', u.email); // remember across refresh
+    sessionStorage.setItem('chat_selected', u.email); // remember across refresh (per-tab)
     this.messages.set([]);
     // clear the unread badge for this person
     this.unread.update((s) => {
