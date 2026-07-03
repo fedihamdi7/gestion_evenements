@@ -62,7 +62,16 @@ export class ChatPage implements OnInit, OnDestroy {
     this.sub = this.messaging.messages$.subscribe((m) => this.onIncoming(m));
 
     this.userService.findAll().subscribe({
-      next: (list) => this.users.set(list.filter((u) => u.email !== this.me)),
+      next: (list) => {
+        this.users.set(list.filter((u) => u.email !== this.me));
+        // Re-open the last conversation after a refresh so its history reloads
+        // (SPA state is lost on refresh; the messages are still in the DB).
+        const savedEmail = localStorage.getItem('chat_selected');
+        if (savedEmail) {
+          const u = this.users().find((x) => x.email === savedEmail);
+          if (u) this.openChat(u);
+        }
+      },
       error: () => {},
     });
   }
@@ -74,6 +83,7 @@ export class ChatPage implements OnInit, OnDestroy {
 
   openChat(u: User) {
     this.selected.set(u);
+    localStorage.setItem('chat_selected', u.email); // remember across refresh
     this.messages.set([]);
     // clear the unread badge for this person
     this.unread.update((s) => {
