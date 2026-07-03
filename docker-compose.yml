@@ -61,6 +61,7 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      JAVA_OPTS_KC_HEAP: "-Xms64m -Xmx512m"
     ports:
       - "8080:8080"
     volumes:
@@ -72,6 +73,8 @@ services:
     build: ./config-server
     container_name: config-server
     restart: unless-stopped
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx200m -XX:+UseSerialGC -Xss512k"
     ports:
       - "8888:8888"
     healthcheck:
@@ -87,6 +90,8 @@ services:
     build: ./eureka-server
     container_name: eureka-server
     restart: unless-stopped
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx200m -XX:+UseSerialGC -Xss512k"
     ports:
       - "8761:8761"
     depends_on:
@@ -105,6 +110,7 @@ services:
     build: ./service-utilisateurs
     container_name: service-utilisateurs
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -XX:+UseSerialGC -Xss512k"
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
       MYSQL_HOST: mysql
@@ -125,6 +131,7 @@ services:
     build: ./service-evenements
     container_name: service-evenements
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -XX:+UseSerialGC -Xss512k"
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
       # its config sets hostname=localhost/prefer-ip-address=false (fine locally, wrong in
@@ -143,6 +150,7 @@ services:
     build: ./service-avis
     container_name: service-avis
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -XX:+UseSerialGC -Xss512k"
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
       MYSQL_HOST: mysql
@@ -159,6 +167,7 @@ services:
     build: ./ReservationEvenement
     container_name: service-reservation
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -XX:+UseSerialGC -Xss512k"
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
       RABBITMQ_HOST: rabbitmq
@@ -194,6 +203,7 @@ services:
     build: ./api-gateway
     container_name: api-gateway
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -XX:+UseSerialGC -Xss512k"
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
       KEYCLOAK_HOST: keycloak
