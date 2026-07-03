@@ -1,6 +1,17 @@
 <section class="events">
   <!-- left: list of events -->
   <aside class="list">
+    @if (canOrganize()) {
+      <form class="create" (ngSubmit)="createEvent()">
+        <h3>Créer un événement</h3>
+        <input name="ctitle" [(ngModel)]="newEvent.title" placeholder="Titre" required />
+        <input name="ccat" [(ngModel)]="newEvent.category" placeholder="Catégorie" />
+        <input name="cloc" [(ngModel)]="newEvent.location" placeholder="Lieu" />
+        <input name="cdate" type="date" [(ngModel)]="newEvent.date" required />
+        <input name="ccap" type="number" min="1" [(ngModel)]="newEvent.capacity" placeholder="Capacité" />
+        <button type="submit">Créer</button>
+      </form>
+    }
     <h3>Événements</h3>
     @for (e of events(); track e.id) {
       <button

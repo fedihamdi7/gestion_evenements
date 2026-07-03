@@ -5,7 +5,8 @@
 # + the service-utilisateurs client) automatically.
 #
 # Usage:   right-click > Run with PowerShell    OR    ./keycloak/run-keycloak.ps1
-# Admin console:  http://localhost:8080   (login: admin / admin)
+# Admin console:  http://localhost:8089   (login: admin / admin)
+# NOTE: port 8089 (pas 8080) car Oracle Database occupe le port 8080 sur cette machine.
 # Stop:    press Ctrl+C in this window.
 # ---------------------------------------------------------------------------
 
@@ -39,5 +40,5 @@ $env:KC_BOOTSTRAP_ADMIN_PASSWORD = "admin"
 $env:JAVA_OPTS_KC_HEAP = "-Xms64m -Xmx512m"
 
 # 4. Start Keycloak in dev mode on port 8080 and import the realm
-Write-Host "Starting Keycloak on http://localhost:8080 (admin/admin). Ctrl+C to stop." -ForegroundColor Green
-& (Join-Path $kcDir "bin\kc.bat") start-dev --http-port 8080 --import-realm
+Write-Host "Starting Keycloak on http://localhost:8089 (admin/admin). Ctrl+C to stop." -ForegroundColor Green
+& (Join-Path $kcDir "bin\kc.bat") start-dev --http-port 8089 --import-realm

@@ -4,7 +4,9 @@
   @if (auth.isLoggedIn()) {
     <nav class="nav">
       <a routerLink="/events">Événements</a>
-      <a routerLink="/users">Utilisateurs</a>
+      @if (auth.isAdmin()) {
+        <a routerLink="/users">Utilisateurs</a>
+      }
       <a routerLink="/chat">Messagerie</a>
     </nav>
     <div class="spacer"></div>

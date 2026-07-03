@@ -45,7 +45,9 @@ public class UtilisateurService {
         if (repository.existsByEmail(req.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email deja utilise: " + req.getEmail());
         }
-        Role role = req.getRole() != null ? req.getRole() : Role.PARTICIPANT;
+        // Registration is PUBLIC: a caller must never be able to self-assign a privileged role.
+        // Everyone signs up as PARTICIPANT; an ADMIN can promote them afterwards via PUT /api/users/{id}.
+        Role role = Role.PARTICIPANT;
 
         // 1. create in Keycloak (source of truth for identity + password)
         String keycloakId = keycloak.createUser(
@@ -83,8 +85,30 @@ public class UtilisateurService {
         return repository.findAll().stream().map(this::toResponse).toList();
     }
 
+    /**
+     * Directory for any logged-in user: id + name + email (needed to display author/participant
+     * names and to pick a chat contact). The ROLE is intentionally omitted — role management stays
+     * an ADMIN-only concern, exposed only through findAll().
+     */
+    public List<UtilisateurResponse> findAllPublic() {
+        return repository.findAll().stream()
+                .map(u -> UtilisateurResponse.builder()
+                        .id(u.getId())
+                        .nom(u.getNom())
+                        .prenom(u.getPrenom())
+                        .email(u.getEmail())
+                        .build())
+                .toList();
+    }
+
     public UtilisateurResponse findById(Long id) {
         return toResponse(getOrThrow(id));
+    }
+
+    public UtilisateurResponse findByEmail(String email) {
+        return toResponse(repository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Profil introuvable pour: " + email)));
     }
 
     public UtilisateurResponse update(Long id, UpdateRequest req) {

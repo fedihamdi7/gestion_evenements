@@ -24,6 +24,13 @@ $ErrorActionPreference = "Stop"
 $root   = Split-Path -Parent $MyInvocation.MyCommand.Path
 $helper = Join-Path $root "scripts\start-module.ps1"
 
+# Neutralize stale KEYCLOAK_* env vars from other projects (e.g. "gitesprit"): Spring's
+# relaxed binding lets KEYCLOAK_REALM etc. silently override our keycloak.* config and
+# break login/register with "Realm not found". Every service window inherits THIS env.
+foreach ($v in "KEYCLOAK_REALM","KEYCLOAK_CLIENT_ID","KEYCLOAK_CLIENT_SECRET","KEYCLOAK_URL","KEYCLOAK_BASE_URL","KEYCLOAK_HOST") {
+    if (Test-Path "Env:$v") { Remove-Item "Env:$v"; Write-Host "Ignoring stale env var $v" -ForegroundColor DarkYellow }
+}
+
 # Use Windows Terminal tabs if available, otherwise separate windows.
 $useTabs = [bool](Get-Command wt -ErrorAction SilentlyContinue)
 if ($useTabs) { Write-Host "Windows Terminal found - each service opens in its own TAB." -ForegroundColor DarkCyan }
@@ -33,7 +40,7 @@ else          { Write-Host "Windows Terminal not found - each service opens in i
 $allPorts = [ordered]@{
     "config-server"        = 8888
     "eureka-server"        = 8761
-    "keycloak"             = 8080
+    "keycloak"             = 8089
     "service-utilisateurs" = 8081
     "service-evenements"   = 8082
     "service-avis"         = 8083
@@ -62,11 +69,15 @@ if ($busy.Count -gt 0) {
 # Launches a powershell process (a tab in the shared WT window, or a new window).
 function Launch {
     param([string]$Title, [string[]]$PsArgs)
+    # Arguments are re-joined with spaces by Start-Process/wt, so any path containing
+    # a space (e.g. C:\Users\Safaa Ltifi\...) must be wrapped in quotes here or the
+    # child powershell receives a truncated path and dies instantly.
+    $quoted = $PsArgs | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }
     if ($useTabs) {
         # -w 0 = reuse the same Windows Terminal window and add a new tab to it.
-        wt -w 0 new-tab --title $Title powershell @PsArgs
+        wt -w 0 new-tab --title $Title powershell @quoted
     } else {
-        Start-Process powershell -ArgumentList $PsArgs
+        Start-Process powershell -ArgumentList ($quoted -join ' ')
     }
     Start-Sleep -Milliseconds 800   # give the tab/window a moment to spawn
 }
@@ -113,7 +124,7 @@ Start-ModuleStep -Dir "eureka-server" -Title "2-eureka-server" -Port 8761
 # 3. Keycloak (login server). First run downloads ~120 MB, so allow more time.
 if (-not $NoKeycloak) {
     Launch -Title "3-keycloak" -PsArgs @("-NoExit", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "keycloak\run-keycloak.ps1"))
-    Wait-Port -Port 8080 -Name "3-keycloak" -TimeoutSec 300 | Out-Null
+    Wait-Port -Port 8089 -Name "3-keycloak" -TimeoutSec 300 | Out-Null
 }
 
 Start-ModuleStep -Dir "api-gateway" -Title "8-api-gateway" -Port 9090
@@ -132,5 +143,5 @@ Write-Host "All services are up. Useful URLs:" -ForegroundColor Yellow
 Write-Host "  Eureka dashboard : http://localhost:8761"
 Write-Host "  API Gateway      : http://localhost:9090"
 Write-Host "  Swagger (all API): http://localhost:9090/swagger-ui.html"
-Write-Host "  Keycloak admin   : http://localhost:8080  (admin/admin)"
+Write-Host "  Keycloak admin   : http://localhost:8089  (admin/admin)"
 Write-Host "`nTo stop everything: run  ./stop-all.ps1" -ForegroundColor Yellow

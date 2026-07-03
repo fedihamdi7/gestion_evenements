@@ -40,6 +40,15 @@ export class AuthService {
     return { username: c.preferred_username ?? c.email ?? '—', roles };
   });
 
+  /** true when the logged-in user has the ADMIN realm role. */
+  readonly isAdmin = computed(() => this.currentUser()?.roles.includes('ADMIN') ?? false);
+
+  /** true when the user can create/manage events (ADMIN or ORGANISATEUR). */
+  readonly canOrganize = computed(() => {
+    const roles = this.currentUser()?.roles ?? [];
+    return roles.includes('ADMIN') || roles.includes('ORGANISATEUR');
+  });
+
   /** current user's email — the identity used for chat (present in the JWT). */
   readonly currentEmail = computed(() => {
     const t = this.token();

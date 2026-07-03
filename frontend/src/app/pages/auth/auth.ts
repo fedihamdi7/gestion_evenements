@@ -40,7 +40,7 @@ export class AuthPage {
     this.auth.login({ email: this.loginEmail, motDePasse: this.loginPass }).subscribe({
       next: () => {
         this.loading.set(false);
-        this.router.navigate(['/users']);
+        this.router.navigate(['/events']);
       },
       error: (e) => {
         this.loading.set(false);

@@ -23,7 +23,8 @@ export class EventsPage implements OnInit {
   private userService = inject(UserService);
   private api = inject(EventsApiService);
 
-  private readonly myEmail = this.auth.currentEmail();
+  /** true when the user may create events (ADMIN / ORGANISATEUR) — drives the create form. */
+  readonly canOrganize = this.auth.canOrganize;
 
   users = signal<User[]>([]);
   myUserId = signal<number | null>(null);
@@ -42,6 +43,9 @@ export class EventsPage implements OnInit {
   booking = signal(false);
   rating = signal(false);
 
+  // create-event form (ADMIN / ORGANISATEUR only)
+  newEvent = { title: '', category: '', location: '', date: '', capacity: 50 };
+
   readonly average = computed(() => {
     const r = this.ratings();
     if (!r.length) return 0;
@@ -53,18 +57,35 @@ export class EventsPage implements OnInit {
   );
 
   ngOnInit() {
-    // resolve my numeric user id (reservations/avis use it) from my email
-    this.userService.findAll().subscribe({
-      next: (list) => {
-        this.users.set(list);
-        const me = list.find((u) => u.email === this.myEmail);
-        this.myUserId.set(me ? me.id : null);
-      },
-      error: () => {},
+    // My own numeric id comes from the JWT-backed /me endpoint (no need to list every user).
+    this.userService.me().subscribe({
+      next: (me) => this.myUserId.set(me.id),
+      error: () => this.myUserId.set(null),
+    });
+    // Names shown next to reservations/ratings: id + name only (public list, any logged-in user).
+    this.userService.publicList().subscribe({
+      next: (list) => this.users.set(list),
+      error: () => this.users.set([]),
     });
     this.api.events().subscribe({
       next: (list) => this.events.set(list),
       error: () => this.message.set({ text: 'Chargement des événements échoué.', ok: false }),
+    });
+  }
+
+  createEvent() {
+    const e = this.newEvent;
+    if (!e.title || !e.date) {
+      this.message.set({ text: 'Titre et date sont obligatoires.', ok: false });
+      return;
+    }
+    this.api.createEvent({ ...e }).subscribe({
+      next: (created) => {
+        this.message.set({ text: `Événement "${created.title}" créé.`, ok: true });
+        this.events.update((list) => [...list, created]);
+        this.newEvent = { title: '', category: '', location: '', date: '', capacity: 50 };
+      },
+      error: () => this.message.set({ text: 'Création échouée (droits insuffisants ?).', ok: false }),
     });
   }
 

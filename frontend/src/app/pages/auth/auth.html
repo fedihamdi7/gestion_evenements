@@ -37,12 +37,10 @@
         <input type="email" name="rEmail" [(ngModel)]="reg.email" required />
         <label>Mot de passe (min 6)</label>
         <input type="password" name="rPass" [(ngModel)]="reg.motDePasse" minlength="6" required />
-        <label>Rôle</label>
-        <select name="role" [(ngModel)]="reg.role">
-          @for (r of roles; track r) {
-            <option [value]="r">{{ r }}</option>
-          }
-        </select>
+        <p class="hint">
+          Vous serez inscrit comme <strong>PARTICIPANT</strong>. Un administrateur pourra
+          vous attribuer un autre rôle par la suite.
+        </p>
         <div class="mt">
           <button type="submit" [disabled]="loading()">
             {{ loading() ? '…' : 'Créer le compte' }}

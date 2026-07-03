@@ -20,6 +20,10 @@ export class EventsApiService {
   event(id: string): Observable<Event> {
     return this.http.get<Event>(`${this.api}/api/events/${id}`);
   }
+  /** Create an event — the gateway restricts this to ADMIN / ORGANISATEUR. */
+  createEvent(event: Omit<Event, 'id'>): Observable<Event> {
+    return this.http.post<Event>(`${this.api}/api/events`, event);
+  }
 
   // ---- reservations (service-reservation) ----
   book(reservation: Reservation): Observable<Reservation> {

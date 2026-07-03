@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import tn.esprit.serviceavis.client.EvenementClient;
 import tn.esprit.serviceavis.client.EvenementDto;
+import tn.esprit.serviceavis.client.ReservationClient;
 import tn.esprit.serviceavis.dto.AvisAvecDetailsResponse;
 import tn.esprit.serviceavis.dto.AvisRequest;
 import tn.esprit.serviceavis.dto.AvisResponse;
@@ -24,8 +25,33 @@ public class AvisService {
 
     private final AvisRepository repository;
     private final EvenementClient evenementClient;
+    private final ReservationClient reservationClient;
 
     public AvisResponse create(AvisRequest req) {
+        // Business rule: you can only rate an event you have actually booked.
+        boolean hasBooked;
+        try {
+            hasBooked = reservationClient.getReservationsByEvent(req.getEvenementId()).stream()
+                    .anyMatch(r -> req.getUtilisateurId().equals(r.getUserId()));
+        } catch (Exception e) {
+            // Fail closed: without a verifiable reservation we refuse the rating.
+            log.warn("Verification de reservation impossible (service-reservation indisponible?): {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Impossible de verifier votre reservation pour le moment. Reessayez.");
+        }
+        if (!hasBooked) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Vous devez avoir reserve cet evenement pour laisser un avis.");
+        }
+
+        // One rating per user per event (no spam / duplicate ratings).
+        boolean alreadyRated = repository.findByUtilisateurId(req.getUtilisateurId()).stream()
+                .anyMatch(a -> req.getEvenementId().equals(a.getEvenementId()));
+        if (alreadyRated) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Vous avez deja laisse un avis pour cet evenement.");
+        }
+
         Avis avis = Avis.builder()
                 .utilisateurId(req.getUtilisateurId())
                 .evenementId(req.getEvenementId())

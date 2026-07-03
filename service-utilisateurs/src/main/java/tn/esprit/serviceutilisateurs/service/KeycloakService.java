@@ -127,7 +127,7 @@ public class KeycloakService {
             if (e.getStatusCode().value() == 409) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Email deja utilise dans Keycloak: " + email);
             }
-            log.error("Keycloak createUser a echoue: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("Keycloak createUser a echoue: {} {} (url={})", e.getStatusCode(), e.getResponseBodyAsString(), adminBase() + "/users");
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Erreur Keycloak lors de la creation de l'utilisateur");
         }
     }

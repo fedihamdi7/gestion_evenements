@@ -32,15 +32,19 @@
             <td>{{ u.prenom }}</td>
             <td>{{ u.email }}</td>
             <td>
-              <select [(ngModel)]="u.role">
+              <select [(ngModel)]="u.role" [disabled]="isSelf(u)">
                 @for (r of roles; track r) {
                   <option [value]="r">{{ r }}</option>
                 }
               </select>
             </td>
             <td class="actions">
-              <button class="sm" (click)="saveRole(u, u.role)">Enregistrer</button>
-              <button class="sm danger" (click)="remove(u)">Suppr.</button>
+              @if (isSelf(u)) {
+                <span class="muted">vous</span>
+              } @else {
+                <button class="sm" (click)="saveRole(u, u.role)">Enregistrer</button>
+                <button class="sm danger" (click)="remove(u)">Suppr.</button>
+              }
             </td>
           </tr>
         }

@@ -39,6 +39,7 @@ export class ChatPage implements OnInit, OnDestroy {
   messages = signal<ChatMessage[]>([]);
   draft = signal('');
   loading = signal(false);
+  loadError = signal<string | null>(null);
   // emails of people who messaged me in a thread I don't have open (unread badges)
   unread = signal<Set<string>>(new Set());
 
@@ -61,11 +62,11 @@ export class ChatPage implements OnInit, OnDestroy {
     // Append realtime messages that belong to the currently open conversation.
     this.sub = this.messaging.messages$.subscribe((m) => this.onIncoming(m));
 
-    this.userService.findAll().subscribe({
+    // Contacts list: use the PUBLIC directory (any logged-in user), not the ADMIN-only findAll().
+    this.userService.publicList().subscribe({
       next: (list) => {
         this.users.set(list.filter((u) => u.email !== this.me));
-        // Re-open the last conversation after a refresh so its history reloads
-        // (SPA state is lost on refresh; the messages are still in the DB).
+        // Re-open the last conversation after a refresh so its history reloads (per-tab).
         const savedEmail = sessionStorage.getItem('chat_selected');
         if (savedEmail) {
           const u = this.users().find((x) => x.email === savedEmail);
@@ -91,7 +92,11 @@ export class ChatPage implements OnInit, OnDestroy {
       n.delete(u.email);
       return n;
     });
-    if (!this.me) return;
+    this.loadError.set(null);
+    if (!this.me) {
+      this.loadError.set('Session non identifiée : reconnectez-vous.');
+      return;
+    }
     this.loading.set(true);
     this.messaging.conversation(this.me, u.email).subscribe({
       next: (list) => {
@@ -99,7 +104,10 @@ export class ChatPage implements OnInit, OnDestroy {
         this.loading.set(false);
         this.scrollToBottom(); // jump to the latest message when opening a chat
       },
-      error: () => this.loading.set(false),
+      error: (e) => {
+        this.loading.set(false);
+        this.loadError.set('Chargement de la conversation échoué (' + (e?.status ?? '?') + ').');
+      },
     });
   }
 

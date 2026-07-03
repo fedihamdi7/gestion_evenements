@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Gestion d'Événements — Guide de Validation</title>
+<style>
+  body { font-family: Calibri, sans-serif; font-size: 11pt; color: #1a1a1a; margin: 2cm; }
+  h1 { font-size: 22pt; color: #1f3864; border-bottom: 3px solid #1f3864; padding-bottom: 6px; }
+  h2 { font-size: 16pt; color: #1f3864; margin-top: 28px; border-bottom: 1px solid #8eaadb; padding-bottom: 3px; }
+  h3 { font-size: 13pt; color: #2e5496; margin-top: 18px; }
+  pre { font-family: Consolas, monospace; font-size: 8.5pt; background: #f2f2f2; border: 1px solid #bfbfbf; padding: 10px; white-space: pre; }
+  code { font-family: Consolas, monospace; font-size: 10pt; background: #f2f2f2; padding: 1px 3px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  th { background: #1f3864; color: white; padding: 6px 8px; text-align: left; font-size: 10pt; }
+  td { border: 1px solid #8eaadb; padding: 5px 8px; font-size: 10pt; vertical-align: top; }
+  tr:nth-child(even) td { background: #eef2fa; }
+  .q { background: #fff2cc; border-left: 4px solid #bf9000; padding: 8px 12px; margin-top: 14px; font-weight: bold; }
+  .r { background: #e2efd9; border-left: 4px solid #538135; padding: 8px 12px; margin-bottom: 6px; }
+  .warn { background: #fbe4e4; border-left: 4px solid #c00000; padding: 8px 12px; }
+  .tip { background: #deeaf6; border-left: 4px solid #2e74b5; padding: 8px 12px; }
+</style>
+</head>
+<body>
+
+<h1>Projet « Gestion d'Événements » — Guide technique complet pour la validation</h1>
+<p><i>Architecture microservices — Spring Boot 3.5.14 · Spring Cloud 2025.0.2 · NestJS · Angular 21 · Keycloak 26 · RabbitMQ · Docker</i></p>
+
+<h2>1. Vue d'ensemble</h2>
+<p>L'application permet de <b>gérer des événements</b> : des utilisateurs s'inscrivent et se connectent (via <b>Keycloak</b>), consultent les événements, les <b>réservent</b>, laissent des <b>avis</b> (note + commentaire, uniquement s'ils ont réservé), et discutent en temps réel via une <b>messagerie</b> (Socket.IO). Le tout est découpé en <b>microservices indépendants</b> qui communiquent entre eux de façon synchrone (<b>OpenFeign</b>) et asynchrone (<b>RabbitMQ</b>), derrière un point d'entrée unique (<b>API Gateway</b>).</p>
+
+<h2>2. Diagramme d'architecture</h2>
+<pre>
+                                 ┌──────────────────────┐
+                                 │   FRONTEND Angular 21 │
+                                 │   http://localhost:4200
+                                 │  (guards, interceptor │
+                                 │   JWT, signals)       │
+                                 └──────────┬───────────┘
+                                            │ HTTP + WebSocket (Bearer JWT)
+                                            ▼
+      ┌─────────────┐  valide JWT   ┌───────────────────┐
+      │  KEYCLOAK   │◄──────(JWKS)──│    API GATEWAY    │  ← point d'entrée UNIQUE
+      │  :8089      │               │  Spring Cloud GW  │     (Spring WebFlux)
+      │ realm:      │               │      :9090        │
+      │ gestion-    │               └───┬───┬───┬───┬───┘
+      │ evenements  │        routes lb://│   │   │   │  (résolution via Eureka)
+      └──────▲──────┘      ┌────────────┘   │   │   └─────────────┐
+             │ REST admin  ▼                ▼   ▼                 ▼
+             │  + login ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+             └──────────│ SERVICE  │ │ SERVICE  │ │ SERVICE  │ │ SERVICE  │ │ SERVICE  │
+                        │UTILISATEU│ │EVENEMENTS│ │   AVIS   │ │RESERVATIO│ │MESSAGING │
+                        │RS  :8081 │ │  :8082   │ │  :8083   │ │N  :8084  │ │(NestJS)  │
+                        │Spring    │ │Spring    │ │Spring    │ │Spring    │ │:8085     │
+                        └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘
+                             │            │            │            │            │
+                        ┌────▼─────┐ ┌────▼─────┐ ┌────▼─────┐ ┌────▼─────┐ ┌────▼─────┐
+                        │  MySQL   │ │ MongoDB  │ │  MySQL   │ │    H2    │ │  MySQL   │
+                        │db_utilisa│ │(embarqué)│ │ db_avis  │ │(mémoire) │ │db_messagi│
+                        │teurs     │ │db_evenem.│ │          │ │db_reserv.│ │ng        │
+                        └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
+
+   Appels Feign (synchrones) :          RabbitMQ (asynchrone) :
+   • avis ────────► evenements          • reservation ──publie──► exchange "events.exchange"
+   • reservation ─► evenements                (routing key "reservation.created")
+   • utilisateurs ► reservation               └──► queue "reservation.notifications"
+                                                        └──consommée par──► utilisateurs
+
+   Infrastructure commune :
+   ┌──────────────┐   ┌──────────────┐   Tous les services (1) récupèrent leur config
+   │CONFIG SERVER │   │EUREKA SERVER │   au démarrage sur :8888, puis (2) s'enregistrent
+   │    :8888     │   │    :8761     │   dans Eureka :8761. La gateway découvre leurs
+   └──────────────┘   └──────────────┘   adresses via Eureka (URI lb://nom-du-service).
+</pre>
+
+<h2>3. Tableau récapitulatif des services</h2>
+<table>
+<tr><th>Module</th><th>Techno</th><th>Port</th><th>Base de données</th><th>Rôle</th></tr>
+<tr><td><b>config-server</b></td><td>Spring Cloud Config (profil <code>native</code>)</td><td>8888</td><td>— (fichiers dans le classpath <code>/config</code>)</td><td>Configuration centralisée de tous les services</td></tr>
+<tr><td><b>eureka-server</b></td><td>Netflix Eureka (Spring Cloud)</td><td>8761</td><td>— (registre en mémoire)</td><td>Annuaire / découverte de services</td></tr>
+<tr><td><b>keycloak</b></td><td>Keycloak 26.1.4 (standalone, dev)</td><td><b>8089</b> (8080 occupé par Oracle sur cette machine)</td><td>H2 embarquée (fichier)</td><td>Serveur d'identité : login, rôles, émission des JWT</td></tr>
+<tr><td><b>api-gateway</b></td><td>Spring Cloud Gateway (WebFlux, réactif)</td><td>9090</td><td>—</td><td>Point d'entrée unique, routage <code>lb://</code>, validation JWT, CORS, Swagger agrégé</td></tr>
+<tr><td><b>service-utilisateurs</b></td><td>Spring Boot 3.5.14 (MVC + JPA)</td><td>8081</td><td><b>MySQL</b> <code>db_utilisateurs</code></td><td>Register/login (délègue à Keycloak), CRUD profils, consomme RabbitMQ</td></tr>
+<tr><td><b>service-evenements</b></td><td>Spring Boot (Spring Data MongoDB)</td><td>8082</td><td><b>MongoDB embarqué</b> (flapdoodle 7.0.0) <code>db_evenements</code></td><td>CRUD événements + endpoint capacité</td></tr>
+<tr><td><b>service-avis</b></td><td>Spring Boot (MVC + JPA + Feign)</td><td>8083</td><td><b>MySQL</b> <code>db_avis</code></td><td>CRUD avis, enrichit via Feign → evenements</td></tr>
+<tr><td><b>service-reservation</b></td><td>Spring Boot (MVC + JPA + Feign + AMQP)</td><td>8084</td><td><b>H2 en mémoire</b> <code>db_reservation</code> (create-drop, console H2)</td><td>CRUD réservations, vérifie la capacité via Feign, publie sur RabbitMQ</td></tr>
+<tr><td><b>service-messaging</b></td><td><b>NestJS</b> (Node.js) + TypeORM + Socket.IO</td><td>8085</td><td><b>MySQL</b> <code>db_messaging</code></td><td>Chat temps réel (REST + WebSocket), s'enregistre lui-même dans Eureka</td></tr>
+<tr><td><b>frontend</b></td><td>Angular 21 (standalone components, signals)</td><td>4200</td><td>—</td><td>IHM : login, utilisateurs, événements+avis+réservations, chat</td></tr>
+</table>
+
+<h2>4. Les trois piliers d'infrastructure (à maîtriser parfaitement)</h2>
+
+<h3>4.1 Config Server — la configuration centralisée</h3>
+<p><b>Problème résolu :</b> avec 7 services, dupliquer les configs (URL de Keycloak, identifiants MySQL, adresse d'Eureka…) dans chaque module devient ingérable : une modification = 7 fichiers à changer.</p>
+<p><b>Solution :</b> un serveur Spring Cloud Config en mode <code>native</code> (il sert de simples fichiers, pas besoin de Git) : les fichiers sont dans <code>config-server/src/main/resources/config/</code>. Chaque service ne garde localement que 2 lignes : son <code>spring.application.name</code> et <code>spring.config.import=configserver:http://localhost:8888</code>. Au démarrage, le service appelle le config-server et reçoit « sa » config : le fichier partagé <code>application.properties</code> (hérité par tous : adresse Eureka, actuator) + son fichier propre (ex. <code>service-avis.properties</code>).</p>
+<p><b>Point important :</b> c'est pour ça que le config-server démarre <b>en premier</b> — sans lui, aucun service ne connaît ni sa base de données ni Eureka. Les valeurs utilisent des <i>placeholders</i> <code>${VAR:défaut}</code> : en local le défaut (localhost) s'applique, dans Docker les variables d'environnement (ex. <code>MYSQL_HOST=mysql</code>) prennent le dessus — <b>même code, deux environnements</b>.</p>
+
+<h3>4.2 Eureka — la découverte de services</h3>
+<p><b>Problème résolu :</b> la gateway doit router vers service-avis. Mais à quelle adresse ? En coder l'IP en dur casserait dès qu'on scale ou qu'on passe en Docker.</p>
+<p><b>Solution :</b> un annuaire. Au démarrage, chaque service <b>s'enregistre</b> dans Eureka sous son nom logique (<code>SERVICE-AVIS</code>…) avec son adresse, et envoie un <i>heartbeat</i> toutes les 30 s (sinon il est évincé de l'annuaire). Les clients (gateway, Feign) demandent à Eureka « qui est service-avis ? » et obtiennent l'adresse à jour. Le dashboard est visible sur <code>http://localhost:8761</code> — <b>à montrer pendant la démo</b>.</p>
+<p><b>Détail vu en TP :</b> même le service NestJS (messaging) s'enregistre dans Eureka — via un petit client REST maison (<code>eureka.ts</code>) qui POST son inscription et renouvelle son heartbeat, preuve qu'Eureka est une simple API REST utilisable depuis n'importe quel langage.</p>
+
+<h3>4.3 API Gateway — le point d'entrée unique</h3>
+<p><b>Problème résolu :</b> sans gateway, le frontend devrait connaître 5 ports différents, gérer le CORS 5 fois, et chaque service devrait re-vérifier la sécurité.</p>
+<p><b>Solution :</b> Spring Cloud Gateway (réactif, basé WebFlux — <b>pas</b> Tomcat/MVC) écoute sur 9090 et route par préfixe d'URL grâce à des <i>predicates</i> :</p>
+<table>
+<tr><th>Route (Path predicate)</th><th>URI cible</th></tr>
+<tr><td><code>/api/users/**</code></td><td><code>lb://service-utilisateurs</code></td></tr>
+<tr><td><code>/api/events/**</code></td><td><code>lb://service-evenements</code></td></tr>
+<tr><td><code>/api/avis/**</code></td><td><code>lb://service-avis</code></td></tr>
+<tr><td><code>/api/reservations/**</code></td><td><code>lb://service-reservation</code></td></tr>
+<tr><td><code>/api/messages/**</code> et <code>/socket.io/**</code> (WebSocket)</td><td><code>lb://service-messaging</code></td></tr>
+</table>
+<p><code>lb://</code> signifie <b>load-balanced</b> : la gateway demande l'adresse à Eureka puis répartit la charge entre les instances (client-side load balancing, Spring Cloud LoadBalancer). La gateway est aussi le <b>point de contrôle sécurité</b> (§5) et agrège les <b>Swagger</b> de tous les services (<code>http://localhost:9090/swagger-ui.html</code>, menu déroulant en haut à droite).</p>
+
+<h3>4.4 Comment les trois collaborent (la question piège classique)</h3>
+<p>Au démarrage : <b>(1)</b> le service contacte le <b>Config Server</b> → reçoit sa config, qui contient notamment l'adresse d'Eureka ; <b>(2)</b> il s'enregistre dans <b>Eureka</b> ; <b>(3)</b> quand une requête arrive, la <b>Gateway</b> matche la route, interroge Eureka pour résoudre <code>lb://nom</code>, valide le JWT et transmet la requête. D'où l'ordre de boot : <b>config-server → eureka → keycloak → services → gateway</b> (script <code>run-all.ps1</code> qui attend le port de chacun avant de lancer le suivant).</p>
+
+<h2>5. Sécurité — Keycloak + OAuth2/JWT</h2>
+<h3>5.1 Les acteurs</h3>
+<p>Keycloak héberge le realm <b><code>gestion-evenements</code></b> avec 3 rôles realm : <b>ADMIN, ORGANISATEUR, PARTICIPANT</b>, et un client public <b><code>service-utilisateurs</code></b> (grant <i>password</i> activé pour le login programmatique).</p>
+<h3>5.2 Le flux d'authentification (à savoir dérouler au tableau)</h3>
+<ol>
+<li>Le frontend envoie email + mot de passe à <code>POST /api/users/login</code> (route <b>publique</b> de la gateway).</li>
+<li><code>service-utilisateurs</code> relaie vers Keycloak (<i>password grant</i> sur <code>/realms/gestion-evenements/protocol/openid-connect/token</code>). Keycloak vérifie le mot de passe (c'est LUI qui stocke les mots de passe, pas notre base !) et renvoie un <b>JWT signé RS256</b> contenant les rôles dans la claim <code>realm_access.roles</code>.</li>
+<li>Le frontend stocke le token (localStorage) et l'<b>intercepteur Angular</b> ajoute <code>Authorization: Bearer …</code> à chaque requête.</li>
+<li>La <b>gateway</b> (OAuth2 <i>Resource Server</i>) valide la <b>signature</b> du JWT grâce aux clés publiques de Keycloak (endpoint <b>JWKS</b> <code>/protocol/openid-connect/certs</code>) + l'<code>issuer</code> + l'expiration. Pas d'appel à Keycloak à chaque requête : la crypto asymétrique suffit (<i>stateless</i>).</li>
+<li><code>service-utilisateurs</code> est LUI AUSSI resource server (défense en profondeur) et convertit <code>realm_access.roles</code> en autorités Spring <code>ROLE_*</code>.</li>
+</ol>
+<h3>5.3 Routes publiques vs protégées (SecurityConfig de la gateway)</h3>
+<p>Publiques : <code>OPTIONS /**</code> (préflight CORS), <code>POST /api/users/register</code> et <code>/login</code>, <code>/socket.io/**</code> (le navigateur ne peut pas mettre de header Authorization sur un WebSocket — le contrôle se fait au handshake côté messaging), actuator et Swagger. <b>Tout le reste exige un JWT valide</b> → sans token, 401 (démontrable dans Postman, requête n°4 de la collection).</p>
+<h3>5.4 Création de compte</h3>
+<p><code>register</code> crée l'utilisateur <b>dans Keycloak</b> (API Admin REST : le service obtient d'abord un token admin sur le realm <code>master</code> avec le client <code>admin-cli</code>, puis POST <code>/admin/realms/gestion-evenements/users</code>, assigne le rôle) <b>et</b> un « profil miroir » dans MySQL (sans mot de passe — colonne supprimée, Keycloak est la seule source des mots de passe). Update/Delete synchronisent les deux.</p>
+
+<h2>6. Communication inter-services</h2>
+<h3>6.1 Synchrone — OpenFeign (3 appels dans le projet)</h3>
+<table>
+<tr><th>Appelant</th><th>Interface Feign</th><th>Appelé</th><th>Pourquoi</th></tr>
+<tr><td>service-avis</td><td><code>EvenementClient</code></td><td>service-evenements (<code>GET /api/events/{id}</code>)</td><td>Enrichir un avis avec les détails de l'événement (<code>/avec-details</code>)</td></tr>
+<tr><td>service-reservation</td><td><code>EventClient</code></td><td>service-evenements (<code>GET /api/events/{id}/capacity</code>)</td><td>Vérifier la capacité restante avant d'accepter la réservation</td></tr>
+<tr><td>service-utilisateurs</td><td><code>ReservationClient</code></td><td>service-reservation (<code>GET /api/reservations/user/{id}</code>)</td><td><code>GET /api/users/{id}/reservations</code> : profil + ses réservations (dégrade proprement si le service est down)</td></tr>
+</table>
+<p><b>À dire :</b> <code>@FeignClient(name = "service-evenements")</code> — on donne le <b>nom Eureka</b>, pas une URL : Feign résout l'adresse via Eureka et fait du load balancing, comme la gateway. Feign génère l'implémentation HTTP à partir d'une simple interface annotée (programmation déclarative).</p>
+<h3>6.2 Asynchrone — RabbitMQ (événementiel)</h3>
+<p>Quand une réservation est créée, <code>service-reservation</code> <b>publie</b> un message JSON <code>ReservationCreatedEvent</code> (userId, titre, date) :</p>
+<table>
+<tr><th>Élément</th><th>Valeur</th></tr>
+<tr><td>Exchange (topic)</td><td><code>events.exchange</code></td></tr>
+<tr><td>Routing key</td><td><code>reservation.created</code></td></tr>
+<tr><td>Queue (durable)</td><td><code>reservation.notifications</code></td></tr>
+<tr><td>Consommateur</td><td><code>service-utilisateurs</code> — <code>@RabbitListener</code> → log « 🔔 Notification : l'utilisateur #X a réservé… »</td></tr>
+<tr><td>Convertisseur</td><td><code>Jackson2JsonMessageConverter</code> (JSON, pas de sérialisation Java)</td></tr>
+</table>
+<p><b>Pourquoi asynchrone ici ?</b> La notification n'est pas critique pour répondre au client : le publish est <b>non bloquant</b> et même entouré d'un try/catch — si RabbitMQ est éteint, la réservation <b>réussit quand même</b> (couplage faible, résilience). Comparaison à connaître : Feign = j'ai besoin de la réponse MAINTENANT (capacité) ; RabbitMQ = « fire and forget », le consommateur traitera quand il pourra, messages persistés dans la queue si le consommateur est down.</p>
+
+<h2>7. Persistance polyglotte (une BD par service — pourquoi ?)</h2>
+<p>Principe microservices : <b>chaque service possède SA base</b>, aucun service ne lit la base d'un autre (on passe par son API). Cela permet de choisir l'outil adapté :</p>
+<ul>
+<li><b>MySQL</b> (relationnel) pour utilisateurs, avis, messages : données structurées, relations, intégrité.</li>
+<li><b>MongoDB</b> (document) pour les événements : schéma flexible, embarqué via <i>flapdoodle</i> (zéro installation — pratique en démo).</li>
+<li><b>H2 en mémoire</b> pour les réservations : légère, <code>create-drop</code> (repart à zéro à chaque redémarrage), console visuelle sur <code>http://localhost:8084/h2-console</code>.</li>
+</ul>
+<p>Hibernate/JPA fait le mapping objet-relationnel côté Spring (<code>ddl-auto=update</code> crée les tables), TypeORM (<code>synchronize: true</code>) l'équivalent côté NestJS.</p>
+
+<h2>8. Le frontend Angular 21</h2>
+<ul>
+<li><b>Standalone components + lazy loading</b> : chaque page est chargée à la demande (<code>loadComponent</code>) — routes : <code>/login</code>, <code>/users</code>, <code>/events</code>, <code>/chat</code>.</li>
+<li><b>Guards</b> : <code>authGuard</code> (redirige vers /login si pas de token), <code>guestGuard</code> (l'inverse).</li>
+<li><b>Intercepteur HTTP</b> (<code>auth-interceptor.ts</code>) : ajoute automatiquement le Bearer token à chaque appel — le code métier n'en parle jamais.</li>
+<li><b>Signals</b> (réactivité moderne d'Angular) pour l'état : utilisateur courant, listes, formulaires.</li>
+<li><b>Une seule URL d'API</b> : <code>environment.apiUrl = http://localhost:9090</code> → tout passe par la gateway.</li>
+<li><b>Chat</b> : socket.io-client se connecte à <code>/socket.io</code> via la gateway (proxy WebSocket) ; messages persistés en MySQL par le service NestJS.</li>
+<li>Page Événements = la plus riche : liste les événements (Mongo), réserve (reservation), affiche/dépose les avis (avis) — règle métier : <b>on ne peut noter que si on a réservé</b>.</li>
+</ul>
+
+<h2>9. Docker & Monitoring</h2>
+<p><code>docker-compose.yml</code> lance TOUT en un <code>docker compose up --build</code> : infra (mysql:8.4 — port hôte 3307 pour ne pas gêner le MySQL local —, rabbitmq:3.13 avec UI de management sur 15672, keycloak avec import du realm), puis config-server, eureka, les 5 services, la gateway, et le monitoring (<b>Prometheus</b> sur 9095 qui scrape <code>/actuator/prometheus</code> de chaque service, <b>Grafana</b> sur 3000 pour les dashboards).</p>
+<p>Points à citer : <b>healthchecks</b> + <code>depends_on: condition: service_healthy</code> garantissent l'ordre de démarrage (l'équivalent Docker du <code>Wait-Port</code> de run-all.ps1) ; réseau bridge <code>esprit-net</code> où les conteneurs se joignent <b>par nom</b> (d'où les variables <code>MYSQL_HOST=mysql</code>, <code>KEYCLOAK_HOST=keycloak</code> injectées pour surcharger les défauts localhost) ; <b>volume nommé</b> <code>mysql_data</code> pour persister les données ; <code>restart: unless-stopped</code>.</p>
+
+<h2>10. Questions probables de la prof — avec les réponses</h2>
+
+<p class="q">Q1. Pourquoi une architecture microservices plutôt qu'un monolithe ?</p>
+<p class="r">Déploiement et scalabilité indépendants (on peut scaler seulement service-evenements), technologies adaptées par service (Java, Node, MySQL, Mongo), isolation des pannes (si avis tombe, le reste vit), équipes autonomes. Coût : complexité d'infrastructure — c'est exactement ce que Config Server/Eureka/Gateway compensent.</p>
+
+<p class="q">Q2. Que se passe-t-il si Eureka tombe en marche ?</p>
+<p class="r">Les clients (gateway, Feign) gardent un <b>cache local</b> du registre : les appels continuent vers les adresses connues. Par contre, plus de nouveaux enregistrements ni de détection de pannes tant qu'il n'est pas revenu.</p>
+
+<p class="q">Q3. Et si le Config Server est éteint ?</p>
+<p class="r">Les services <b>déjà démarrés</b> ne sont pas affectés (la config est lue au boot). Mais un service qui (re)démarre échouera car il ne peut pas récupérer sa configuration — d'où son démarrage en premier.</p>
+
+<p class="q">Q4. Comment la gateway sait-elle où se trouve service-avis ?</p>
+<p class="r">Route <code>Path=/api/avis/** → uri lb://service-avis</code> : le préfixe <code>lb://</code> déclenche Spring Cloud LoadBalancer qui interroge <b>Eureka</b> par nom logique et choisit une instance (round-robin si plusieurs).</p>
+
+<p class="q">Q5. Comment un JWT est-il validé ? La gateway appelle-t-elle Keycloak à chaque requête ?</p>
+<p class="r">Non. Le JWT est signé <b>RS256</b> (asymétrique). La gateway télécharge une fois les <b>clés publiques</b> de Keycloak (JWKS) et vérifie localement signature + expiration + issuer. C'est stateless et performant. On peut décoder le token sur jwt.io pour montrer les claims (<code>realm_access.roles</code>, <code>preferred_username</code>, <code>exp</code>…).</p>
+
+<p class="q">Q6. Différence entre authentification et autorisation dans votre projet ?</p>
+<p class="r">Authentification = prouver qui je suis → Keycloak vérifie le mot de passe et émet le JWT. Autorisation = ce que j'ai le droit de faire → les rôles (ADMIN/ORGANISATEUR/PARTICIPANT) portés par le token, convertis en <code>ROLE_*</code> par Spring Security dans les services.</p>
+
+<p class="q">Q7. Pourquoi les mots de passe ne sont-ils pas dans votre base MySQL ?</p>
+<p class="r">Délégation à Keycloak (single source of truth, hashage/politiques gérés par un produit dédié). MySQL ne stocke qu'un profil miroir (nom, email, rôle, keycloakId) pour les jointures métier.</p>
+
+<p class="q">Q8. Feign vs RestTemplate/WebClient ?</p>
+<p class="r">Feign est <b>déclaratif</b> : on écrit une interface annotée, l'implémentation HTTP est générée. Intégré à Eureka + LoadBalancer (nom logique au lieu d'URL). Moins de code répétitif qu'un RestTemplate manuel.</p>
+
+<p class="q">Q9. Pourquoi RabbitMQ ici et pas un appel Feign ?</p>
+<p class="r">La notification n'exige pas de réponse immédiate : en asynchrone, la réservation répond vite même si le consommateur est lent ou éteint (le message attend dans la queue durable). Découplage : demain un service « emails » peut consommer le même exchange sans toucher au producteur. Le publish est même dans un try/catch : broker down ≠ réservation échouée.</p>
+
+<p class="q">Q10. Expliquez exchange / routing key / queue.</p>
+<p class="r">Le producteur publie dans un <b>exchange</b> (ici topic <code>events.exchange</code>) avec une <b>routing key</b> (<code>reservation.created</code>). L'exchange route vers les <b>queues</b> liées (binding) dont le pattern matche. La queue <code>reservation.notifications</code> stocke le message jusqu'à consommation par le <code>@RabbitListener</code>.</p>
+
+<p class="q">Q11. Pourquoi 3 types de bases de données différents ?</p>
+<p class="r">« Database per service » + persistance polyglotte : relationnel (MySQL) quand il faut intégrité/relations, document (MongoDB) pour un schéma flexible d'événements, H2 mémoire pour un service dont l'état peut être volatile en dev. Ça démontre l'indépendance des services : aucun schéma partagé.</p>
+
+<p class="q">Q12. Deux services peuvent-ils partager une base ?</p>
+<p class="r">Techniquement oui, mais c'est un anti-pattern microservices : couplage par le schéma. Ici chaque base appartient à UN service ; les autres passent par son API REST (ou par événements).</p>
+
+<p class="q">Q13. Comment le frontend attache-t-il le token ? Où est-il stocké ?</p>
+<p class="r">Dans le localStorage ; un <b>HttpInterceptor</b> Angular clone chaque requête sortante en ajoutant <code>Authorization: Bearer token</code>. Les <b>guards</b> bloquent la navigation si pas connecté.</p>
+
+<p class="q">Q14. Pourquoi la route /socket.io est-elle publique dans la gateway ?</p>
+<p class="r">L'API WebSocket du navigateur ne permet pas d'envoyer un header Authorization au handshake. Le contrôle d'accès est donc fait côté service-messaging au moment du handshake, et la gateway se contente de proxyfier le WebSocket.</p>
+
+<p class="q">Q15. Que voit-on sur http://localhost:8761 ?</p>
+<p class="r">Le dashboard Eureka : la liste des instances enregistrées (SERVICE-UTILISATEURS, SERVICE-EVENEMENTS, SERVICE-AVIS, SERVICE-RESERVATION, SERVICE-MESSAGING, API-GATEWAY) avec statut UP — la preuve vivante de la découverte de services.</p>
+
+<p class="q">Q16. Comment Swagger fonctionne-t-il à travers la gateway ?</p>
+<p class="r">Chaque service expose sa doc OpenAPI sous sa propre route (ex. <code>/api/avis/v3/api-docs</code>). La gateway déclare ces URLs dans <code>springdoc.swagger-ui.urls[…]</code> : une seule UI (<code>:9090/swagger-ui.html</code>) avec un menu déroulant pour naviguer entre TOUTES les APIs — le tout récupéré à travers la gateway elle-même.</p>
+
+<p class="q">Q17. Local vs Docker : qu'est-ce qui change ?</p>
+<p class="r">Rien dans le code ! Les configs utilisent <code>${VAR:localhost}</code> : en local les défauts s'appliquent ; dans Docker, compose injecte <code>MYSQL_HOST=mysql</code>, <code>EUREKA_HOST=eureka-server</code>, <code>KEYCLOAK_HOST=keycloak</code>… et les conteneurs se résolvent par nom sur le réseau bridge. Les healthchecks remplacent l'attente de ports du script local.</p>
+
+<p class="q">Q18. À quoi servent Prometheus et Grafana ?</p>
+<p class="r">Spring Boot Actuator expose des métriques au format Prometheus (<code>/actuator/prometheus</code>) : requêtes/s, latences, mémoire JVM… Prometheus les <i>scrape</i> périodiquement et les stocke ; Grafana les visualise en dashboards. C'est l'observabilité, indispensable quand on a 7 services.</p>
+
+<p class="q">Q19. Que se passe-t-il si service-reservation est down quand on consulte un profil ?</p>
+<p class="r"><code>GET /api/users/{id}/reservations</code> dégrade proprement : l'appel Feign échoue mais le service renvoie le profil avec une liste vide/erreur signalée au lieu de tout casser (tolérance aux pannes).</p>
+
+<p class="q">Q20. Pourquoi votre Keycloak est sur 8089 et pas 8080 ?</p>
+<p class="r">Spécificité de la machine : Oracle Database occupe déjà le port 8080. Le port est centralisé dans la config (placeholder <code>KEYCLOAK_BASE_URL</code>), donc un seul endroit à changer — et dans Docker il repasse en 8080 interne via <code>KEYCLOAK_HOST=keycloak</code>.</p>
+
+<h2>11. Scénario de démonstration conseillé (10 min)</h2>
+<ol>
+<li><code>./run-all.ps1</code> puis <code>cd frontend; npm start</code> — montrer l'ordre de démarrage.</li>
+<li>Ouvrir <b>Eureka</b> (8761) : tous les services UP.</li>
+<li>Ouvrir <b>Keycloak</b> (8089, admin/admin) : realm, rôles, utilisateurs.</li>
+<li>Frontend : <b>register</b> → montrer l'utilisateur créé DANS Keycloak ET dans MySQL.</li>
+<li><b>Login</b> → décoder le JWT sur jwt.io (rôles, expiration).</li>
+<li>Créer un événement, le <b>réserver</b> → montrer le log « 🔔 [RabbitMQ] » dans la console de service-utilisateurs (si RabbitMQ lancé).</li>
+<li>Laisser un <b>avis</b> (possible seulement après réservation) → moyenne mise à jour.</li>
+<li><b>Chat</b> à deux navigateurs (temps réel Socket.IO).</li>
+<li>Postman : appel sans token → <b>401</b> (sécurité effective).</li>
+<li><b>Swagger agrégé</b> (9090/swagger-ui.html) et, si demandé, H2 console (8084/h2-console) + RabbitMQ UI (15672).</li>
+</ol>
+
+<p class="warn"><b>Pièges connus de VOTRE machine</b> (à ne pas oublier le jour J) : Keycloak = port <b>8089</b> (8080 = Oracle) · mot de passe MySQL root = <b>vide</b> · ne jamais faire « Discard changes » sur les fichiers de config (ça a déjà annulé les corrections) · RabbitMQ doit être lancé (Docker) pour la démo notification, sinon tout marche mais sans le log 🔔.</p>
+
+<p class="tip"><b>Phrase de synthèse à retenir :</b> « Le client n'a qu'une porte d'entrée (la gateway), les services n'ont qu'une source de configuration (le config server), et personne ne connaît l'adresse de personne : tout le monde se trouve par son nom grâce à Eureka. La sécurité est déléguée à Keycloak via des JWT vérifiés cryptographiquement, les échanges critiques sont synchrones (Feign), les non-critiques asynchrones (RabbitMQ), et chaque service est maître de sa propre base de données. »</p>
+
+</body>
+</html>

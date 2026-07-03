@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { UserService } from '../../core/users';
+import { AuthService } from '../../core/auth';
 import { ROLES, Role, User } from '../../core/models';
 
 type Msg = { text: string; ok: boolean } | null;
@@ -14,8 +15,15 @@ type Msg = { text: string; ok: boolean } | null;
 })
 export class UsersPage implements OnInit {
   private service = inject(UserService);
+  private auth = inject(AuthService);
 
+  /** the logged-in admin's own email — used to disable self-management actions. */
+  readonly myEmail = this.auth.currentEmail();
   readonly roles = ROLES;
+
+  isSelf(u: User): boolean {
+    return !!this.myEmail && u.email?.toLowerCase() === this.myEmail.toLowerCase();
+  }
   users = signal<User[]>([]);
   loading = signal(false);
   message = signal<Msg>(null);

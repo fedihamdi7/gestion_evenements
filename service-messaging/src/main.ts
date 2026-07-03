@@ -11,7 +11,7 @@ async function ensureDatabase() {
     host: process.env.MYSQL_HOST || 'localhost',
     port: 3306,
     user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || 'root',
+    password: process.env.MYSQL_PASSWORD || '',
   });
   await conn.query('CREATE DATABASE IF NOT EXISTS db_messaging');
   await conn.end();
@@ -21,10 +21,11 @@ async function bootstrap() {
   await ensureDatabase();
 
   const app = await NestFactory.create(AppModule);
-  // NOTE: no app.enableCors() here — all traffic goes through the API Gateway, which
-  // adds the CORS headers. Adding them here too produced DUPLICATE
-  // Access-Control-Allow-Origin headers, which browsers reject (chat history failed).
-  // (The Socket.IO handshake CORS is configured separately in the WebSocket gateway.)
+  // NOTE: do NOT enable REST CORS here. All browser traffic goes through the API Gateway,
+  // which already adds the Access-Control-Allow-Origin header. Enabling it here too produced
+  // TWO Access-Control-Allow-Origin headers on /api/messages/** responses, which browsers
+  // reject (net::ERR_FAILED / status 0) — that made chat history load as "empty".
+  // The Socket.IO handshake keeps its own CORS via @WebSocketGateway({ cors: ... }).
 
   // Swagger/OpenAPI — the JSON is served at /api/messages/v3/api-docs so the API Gateway
   // can aggregate it in its Swagger UI dropdown, like the Java services.

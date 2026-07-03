@@ -15,4 +15,7 @@ public interface EventClient {
 
     @GetMapping("/api/events/{id}")
     EventDto getEventById(@PathVariable("id") String id);
+
+    @GetMapping("/api/events/{id}/capacity")
+    Integer getCapacity(@PathVariable("id") String id);
 }

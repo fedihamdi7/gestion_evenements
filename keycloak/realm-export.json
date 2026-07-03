@@ -2,6 +2,7 @@
   "realm": "gestion-evenements",
   "enabled": true,
   "sslRequired": "none",
+  "accessTokenLifespan": 3600,
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
