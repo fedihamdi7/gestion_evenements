@@ -243,6 +243,24 @@ services:
       - prometheus
     networks: [esprit-net]
 
+  # ---------------- phpMyAdmin (browse the MySQL databases) ----------------
+  # http://localhost:8090  — auto-logged in as root/root. Shows db_utilisateurs,
+  # db_avis, db_messaging. (reservation uses in-memory H2, events uses Mongo — not here.)
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: root
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "8090:80"
+    depends_on:
+      - mysql
+    networks: [esprit-net]
+
 volumes:
   mysql_data:
 
