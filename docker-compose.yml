@@ -118,6 +118,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: root
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
+      # register by container name (the shared config uses hostname=localhost, which the
+      # gateway can't reach inside Docker) -> otherwise the gateway returns 503/500.
+      EUREKA_INSTANCE_HOSTNAME: service-utilisateurs
       MYSQL_HOST: mysql
       KEYCLOAK_HOST: keycloak
       RABBITMQ_HOST: rabbitmq
@@ -159,6 +162,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: root   # mysql container root password (config default is empty)
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
+      EUREKA_INSTANCE_HOSTNAME: service-avis   # register by container name (not localhost)
       MYSQL_HOST: mysql
     ports:
       - "8083:8083"
@@ -176,6 +180,7 @@ services:
       JAVA_TOOL_OPTIONS: "-Xmx256m -XX:+UseSerialGC -Xss512k"
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
+      EUREKA_INSTANCE_HOSTNAME: service-reservation   # register by container name (not localhost)
       RABBITMQ_HOST: rabbitmq
     ports:
       - "8084:8084"
