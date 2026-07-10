@@ -123,6 +123,9 @@ services:
       EUREKA_INSTANCE_HOSTNAME: service-utilisateurs
       MYSQL_HOST: mysql
       KEYCLOAK_HOST: keycloak
+      # the keycloak CONTAINER listens on 8080 (config default is 8089 for a local PC where
+      # Oracle uses 8080). Override the full URL so login reaches Keycloak.
+      KEYCLOAK_BASE_URL: http://keycloak:8080
       RABBITMQ_HOST: rabbitmq
     ports:
       - "8081:8081"
@@ -219,6 +222,8 @@ services:
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
       KEYCLOAK_HOST: keycloak
+      # keycloak container is on 8080; this also keeps the JWT issuer matching the token's iss.
+      KEYCLOAK_BASE_URL: http://keycloak:8080
     ports:
       - "9090:9090"
     depends_on:
