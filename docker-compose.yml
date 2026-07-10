@@ -75,6 +75,8 @@ services:
     restart: unless-stopped
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx200m -XX:+UseSerialGC -Xss512k"
+      EUREKA_HOST: eureka-server
+      EUREKA_INSTANCE_HOSTNAME: config-server
     ports:
       - "8888:8888"
     healthcheck:
@@ -259,6 +261,19 @@ services:
       - "8090:80"
     depends_on:
       - mysql
+    networks: [esprit-net]
+
+  # ---------------- Frontend (Angular, served by nginx) ----------------
+  # http://localhost:4200 — static SPA. The browser calls the gateway at
+  # http://localhost:9090 (host-mapped), so no build-time API URL change is needed.
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    depends_on:
+      - api-gateway
     networks: [esprit-net]
 
 volumes:
