@@ -113,6 +113,9 @@ services:
     container_name: service-utilisateurs
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx256m -XX:+UseSerialGC -Xss512k"
+      # the mysql CONTAINER root password is "root"; the config default is empty (for a
+      # local passwordless MySQL), so we must set it here or the DB connection is refused.
+      SPRING_DATASOURCE_PASSWORD: root
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
       MYSQL_HOST: mysql
@@ -153,6 +156,7 @@ services:
     container_name: service-avis
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx256m -XX:+UseSerialGC -Xss512k"
+      SPRING_DATASOURCE_PASSWORD: root   # mysql container root password (config default is empty)
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_HOST: eureka-server
       MYSQL_HOST: mysql
@@ -188,6 +192,7 @@ services:
     environment:
       EUREKA_HOST: eureka-server
       MYSQL_HOST: mysql
+      MYSQL_PASSWORD: root   # mysql container root password (code default is empty)
       PORT: 8085
       # register in Eureka under the container name so the gateway can reach it
       INSTANCE_HOST: service-messaging
